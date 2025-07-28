@@ -1,0 +1,322 @@
+/**
+ * DeepLX Translation App - Custom Styles
+ * 
+ * This stylesheet provides custom styling for the DeepLX translation app,
+ * including RTL/LTR text support, animations, and enhanced UI components.
+ * 
+ * @author Xi Xu
+ * @version 1.0.0
+ */
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+/* ==========================================================================
+   Text Direction Support (RTL/LTR)
+   ========================================================================== */
+
+/* RTL support for Arabic and other right-to-left languages */
+.rtl-text {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: embed;
+}
+
+/* LTR support for left-to-right languages */
+.ltr-text {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: embed;
+}
+
+/* Smooth transition for direction changes */
+.translate-textarea {
+  transition: direction 0.3s ease, text-align 0.3s ease;
+}
+
+/* ==========================================================================
+   Form Elements and Inputs
+   ========================================================================== */
+
+/* Translation textarea styling */
+.translate-textarea {
+  background-color: #2d3748; /* Dark gray background */
+  color: #e2e8f0; /* Light gray text */
+  border: 1px solid #4a5568; /* Border color */
+  min-height: 200px; /* Minimum height for better UX */
+  resize: vertical; /* Allow vertical resizing only */
+}
+
+/* Focus states for input elements */
+.translate-textarea:focus,
+.api-input:focus {
+  outline: none;
+  border-color: #4299e1; /* Blue border on focus */
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+}
+
+/* Enhanced textarea focus effects */
+.translate-textarea:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  transform: scale(1.01);
+  transition: all 0.2s ease;
+}
+
+/* Language selector styling */
+.lang-select {
+  background-color: #4a5568;
+  color: #e2e8f0;
+  border: 1px solid #718096;
+}
+
+/* API input field styling */
+.api-input {
+  background-color: #2d3748;
+  border: 1px solid #4a5568;
+}
+
+/* Input field enhancements */
+.api-input:focus,
+.lang-select:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+  transition: all 0.2s ease;
+}
+
+/* ==========================================================================
+   Interactive Elements and Buttons
+   ========================================================================== */
+
+/* Action button base styling */
+.action-btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.action-btn:hover:not(:disabled) {
+  background-color: #4a5568;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Loading spinner animation */
+#loadingSpinner {
+  border-top-color: #4299e1;
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 10px rgba(66, 153, 225, 0.3);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   History Panel and Components
+   ========================================================================== */
+
+/* History item container styling */
+.history-item {
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background-color: #4b5563;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* History item text elements */
+.history-item .source-text {
+  color: #d1d5db;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.history-item .target-text {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.history-item .lang-info {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* RTL support for history items */
+.history-item .source-text.rtl-text,
+.history-item .target-text.rtl-text {
+  direction: rtl;
+  text-align: right;
+}
+
+/* ==========================================================================
+   UI Components and Controls
+   ========================================================================== */
+
+/* Toggle switch styles */
+.peer:checked ~ .peer-checked\:bg-blue-600 {
+  background-color: #2563eb;
+}
+
+/* Enhanced toggle switch */
+.peer:checked ~ div {
+  background-color: #2563eb;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+/* Scrollbar styles for history list */
+#historyList::-webkit-scrollbar {
+  width: 6px;
+}
+
+#historyList::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 3px;
+}
+
+#historyList::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 3px;
+}
+
+#historyList::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Panel backdrop blur effect */
+#historyPanel,
+#settingsPanel {
+  backdrop-filter: blur(4px);
+}
+
+/* Status message animations */
+#statusMessage {
+  transition: all 0.3s ease;
+}
+
+/* Quick tips styling */
+.bg-gray-700 {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  border: 1px solid #6b7280;
+}
+
+/* ==========================================================================
+   Animations and Effects
+   ========================================================================== */
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    background-color: #10b981;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-fade-in-delay {
+  animation: fadeIn 0.6s ease-out 0.2s both;
+}
+
+.animate-fade-in-delay-3 {
+  animation: fadeIn 0.6s ease-out 0.6s both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+/* Copy button pulse effect when clicked */
+.copy-success {
+  animation: pulse 0.3s ease-in-out;
+}
+
+/* ==========================================================================
+   Character Counter and Status
+   ========================================================================== */
+
+/* Character counter styling */
+#charCount {
+  transition: color 0.2s ease;
+}
+
+.char-warning {
+  color: #fbbf24 !important;
+}
+
+.char-danger {
+  color: #ef4444 !important;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .action-btn:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}

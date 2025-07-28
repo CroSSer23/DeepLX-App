@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Basic Meta Tags -->
+    <title>DeepLX App - Free DeepL Translation Alternative</title>
+    <meta
+      name="description"
+      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+    />
+    <meta
+      name="keywords"
+      content="translation, translator, DeepLX, AI translation, free translator, language translation, multilingual, auto translate"
+    />
+    <meta name="author" content="Xi Xu" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="English" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="logo.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="logo.png" />
+    <link rel="apple-touch-icon" href="logo.png" />
+
+    <!-- Open Graph Meta Tags (Facebook, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="DeepLX App - Free DeepL Translation Alternative"
+    />
+    <meta
+      property="og:description"
+      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+    />
+    <meta property="og:image" content="logo.png" />
+    <meta property="og:url" content="https://deeplx.xi-xu.me" />
+    <meta property="og:site_name" content="DeepLX App" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="DeepLX App - Free DeepL Translation Alternative"
+    />
+    <meta
+      name="twitter:description"
+      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+    />
+    <meta name="twitter:image" content="logo.png" />
+    <meta name="twitter:creator" content="@xixu_me" />
+    <meta name="twitter:site" content="@xixu_me" />
+
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#1f2937" />
+    <meta name="msapplication-TileColor" content="#1f2937" />
+    <meta name="msapplication-config" content="browserconfig.xml" />
+    <meta name="application-name" content="DeepLX App" />
+    <meta name="apple-mobile-web-app-title" content="DeepLX App" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://deeplx.xi-xu.me" />
+
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" />
+    <link rel="preconnect" href="https://unpkg.com" />
+
+    <!-- Import Tailwind CSS for modern design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Lucide Icons library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body
+    class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4"
+  >
+    <div class="w-full max-w-4xl mx-auto">
+      <header class="text-center mb-6">
+        <h1 class="text-4xl font-bold text-white animate-fade-in">
+          DeepLX App
+        </h1>
+        <p class="text-gray-400 mt-2 animate-fade-in-delay">
+          The web app using the DeepLX API
+        </p>
+      </header>
+
+      <main class="bg-gray-800 shadow-2xl rounded-xl p-6 animate-slide-up">
+        <!-- Language selection and operation area -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center mb-4">
+          <!-- Source language selection -->
+          <div class="flex flex-col">
+            <label
+              for="sourceLang"
+              class="mb-1 text-sm font-medium text-gray-400"
+              >Source Language</label
+            >
+            <select
+              id="sourceLang"
+              class="lang-select w-full p-2 rounded-md"
+            ></select>
+          </div>
+          <!-- Target language selection -->
+          <div class="flex flex-col">
+            <label
+              for="targetLang"
+              class="mb-1 text-sm font-medium text-gray-400"
+              >Target Language</label
+            >
+            <select
+              id="targetLang"
+              class="lang-select w-full p-2 rounded-md"
+            ></select>
+          </div>
+        </div>
+
+        <!-- Text input/output area -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Input area -->
+          <div class="relative">
+            <label class="block text-sm font-medium text-gray-400 mb-2">
+              <i data-lucide="edit-3" class="w-4 h-4 inline mr-1"></i>
+              Input Text
+            </label>
+            <textarea
+              id="inputText"
+              class="translate-textarea w-full p-3 rounded-lg"
+              placeholder="Enter text to translate here... (Auto-translate enabled)"
+              maxlength="5000"
+            ></textarea>
+            <div class="absolute bottom-2 right-2 text-xs text-gray-500">
+              <span id="charCount">0</span>/5000
+            </div>
+          </div>
+          <!-- Output area -->
+          <div class="relative">
+            <label class="block text-sm font-medium text-gray-400 mb-2">
+              <i data-lucide="languages" class="w-4 h-4 inline mr-1"></i>
+              Translation Result
+            </label>
+            <textarea
+              id="outputText"
+              class="translate-textarea w-full p-3 rounded-lg"
+              placeholder="Translation result will appear here automatically..."
+              readonly
+            ></textarea>
+            <button
+              id="copyButton"
+              title="Copy to clipboard"
+              class="action-btn absolute top-8 right-2 p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white"
+            >
+              <i data-lucide="copy" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Control buttons and status area -->
+        <div
+          class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div class="flex items-center gap-2">
+            <button
+              id="swapButton"
+              title="Swap languages"
+              class="action-btn p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white flex items-center gap-2"
+            >
+              <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+              <span class="hidden sm:inline">Swap Languages</span>
+            </button>
+            <button
+              id="historyButton"
+              title="Translation history"
+              class="action-btn p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white flex items-center gap-2"
+            >
+              <i data-lucide="history" class="w-5 h-5"></i>
+              <span class="hidden sm:inline">History</span>
+            </button>
+            <button
+              id="settingsButton"
+              title="Settings"
+              class="action-btn p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white flex items-center gap-2"
+            >
+              <i data-lucide="settings" class="w-5 h-5"></i>
+              <span class="hidden sm:inline">Settings</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <div
+              id="loadingSpinner"
+              class="hidden w-5 h-5 border-2 border-gray-400 rounded-full"
+            ></div>
+            <div
+              id="statusMessage"
+              class="text-green-400 text-sm h-5 text-right"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Quick tips -->
+        <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+          <div class="text-xs text-gray-400 space-y-1">
+            <div class="flex items-center gap-2">
+              <i data-lucide="info" class="w-3 h-3"></i>
+              <span>Auto-translation activates after you stop typing</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="keyboard" class="w-3 h-3"></i>
+              <span
+                >Press Ctrl+Enter to translate manually • Esc to close
+                panels</span
+              >
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="clock" class="w-3 h-3"></i>
+              <span>Translation history is automatically saved</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- History Panel -->
+      <div
+        id="historyPanel"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+      >
+        <div
+          class="bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-96 overflow-hidden animate-slide-up shadow-2xl"
+        >
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="history" class="w-5 h-5"></i>
+              Translation History
+            </h2>
+            <button
+              id="closeHistoryButton"
+              class="action-btn p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div class="flex justify-between items-center mb-4">
+            <span class="text-gray-400 text-sm" id="historyCount"
+              >0 records</span
+            >
+            <button
+              id="clearHistoryButton"
+              class="action-btn px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm transition-colors"
+            >
+              Clear All
+            </button>
+          </div>
+          <div id="historyList" class="space-y-2 overflow-y-auto max-h-64">
+            <!-- History items will be inserted here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div
+        id="settingsPanel"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+      >
+        <div
+          class="bg-gray-800 rounded-xl p-6 w-full max-w-md animate-slide-up shadow-2xl"
+        >
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="settings" class="w-5 h-5"></i>
+              Settings
+            </h2>
+            <button
+              id="closeSettingsButton"
+              class="action-btn p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <!-- API Endpoint -->
+            <div>
+              <label
+                for="apiUrlInput"
+                class="block mb-1 font-medium text-gray-400 flex items-center gap-2"
+              >
+                <i data-lucide="link" class="w-4 h-4"></i>
+                API Endpoint
+              </label>
+              <input
+                type="text"
+                id="apiUrlInput"
+                class="api-input w-full p-2 rounded-md text-gray-300"
+                placeholder="https://your-deeplx-api.com/translate"
+              />
+            </div>
+            <!-- Auto-translate delay -->
+            <div>
+              <label
+                for="delayInput"
+                class="block mb-1 font-medium text-gray-400 flex items-center gap-2"
+              >
+                <i data-lucide="timer" class="w-4 h-4"></i>
+                Auto-translate Delay (ms)
+              </label>
+              <input
+                type="number"
+                id="delayInput"
+                min="100"
+                max="5000"
+                step="100"
+                class="api-input w-full p-2 rounded-md text-gray-300"
+              />
+              <p class="text-xs text-gray-500 mt-1">
+                Delay before auto-translation starts (100-5000ms)
+              </p>
+            </div>
+            <!-- Enable auto-translate -->
+            <div class="flex items-center justify-between">
+              <label
+                for="autoTranslateToggle"
+                class="font-medium text-gray-400 flex items-center gap-2"
+              >
+                <i data-lucide="zap" class="w-4 h-4"></i>
+                Enable Auto-translate
+              </label>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="autoTranslateToggle"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+                ></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer
+        class="text-center mt-6 text-gray-500 text-sm animate-fade-in-delay-3"
+      >
+        <p>
+          Default API Endpoint is a pre-deployed instance of
+          <a
+            href="https://github.com/xixu-me/DeepLX"
+            target="_blank"
+            class="underline hover:text-gray-300 transition-colors"
+            >https://github.com/xixu-me/DeepLX</a
+          >
+        </p>
+        <p class="mt-1">
+          The source code repository of this app is
+          <a
+            href="https://github.com/xixu-me/DeepLX-App"
+            target="_blank"
+            class="underline hover:text-gray-300 transition-colors"
+            >https://github.com/xixu-me/DeepLX-App</a
+          >
+        </p>
+        <p class="mt-1">
+          Copyright &copy; 2025
+          <a
+            href="https://xi-xu.me"
+            target="_blank"
+            class="underline hover:text-gray-300 transition-colors"
+            >Xi Xu</a
+          >. All rights reserved.
+        </p>
+      </footer>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

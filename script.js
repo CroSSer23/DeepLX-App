@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     charCount: document.getElementById("charCount"),
   };
 
-  // Application state
+  // App state
   let translateTimeout;
   let translationHistory = [];
 
@@ -667,7 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize
   /**
-   * Application Initialization
+   * App Initialization
    */
 
   // Initialize core app components

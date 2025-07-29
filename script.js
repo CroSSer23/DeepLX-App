@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Populates language dropdown menus with sorted language options
-   * Sets default values for source (AUTO) and target (EN) languages
+   * Restores saved language selections or uses defaults
    */
   function populateLanguages() {
     elements.sourceLangSelect.innerHTML =
@@ -182,9 +182,12 @@ document.addEventListener("DOMContentLoaded", () => {
       elements.targetLangSelect.add(new Option(name, code));
     });
 
-    // Set default language selections
-    elements.sourceLangSelect.value = "AUTO";
-    elements.targetLangSelect.value = "EN";
+    // Restore saved language selections or use defaults
+    const savedSourceLang = localStorage.getItem("deeplxSourceLang") || "AUTO";
+    const savedTargetLang = localStorage.getItem("deeplxTargetLang") || "EN";
+
+    elements.sourceLangSelect.value = savedSourceLang;
+    elements.targetLangSelect.value = savedTargetLang;
   }
 
   // Load and save settings
@@ -719,8 +722,14 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.sourceLangSelect.addEventListener("change", () => {
     updateSwapButtonState();
     scheduleAutoTranslate();
+    // Save source language selection
+    localStorage.setItem("deeplxSourceLang", elements.sourceLangSelect.value);
   });
-  elements.targetLangSelect.addEventListener("change", scheduleAutoTranslate);
+  elements.targetLangSelect.addEventListener("change", () => {
+    scheduleAutoTranslate();
+    // Save target language selection
+    localStorage.setItem("deeplxTargetLang", elements.targetLangSelect.value);
+  });
 
   // Panel management - close when clicking outside
   elements.historyPanel.addEventListener("click", (e) => {

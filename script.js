@@ -331,7 +331,9 @@ document.addEventListener("DOMContentLoaded", () => {
         item.targetText.length > 100 ? "..." : ""
       }</div>
         <div class="lang-info">${
-          languages[item.sourceLang] || item.sourceLang
+          item.sourceLang === "AUTO"
+            ? "Auto-detected"
+            : languages[item.sourceLang] || item.sourceLang
         } → ${languages[item.targetLang] || item.targetLang}</div>
       `;
 
@@ -456,12 +458,25 @@ document.addEventListener("DOMContentLoaded", () => {
         // Apply RTL/LTR direction to output text
         applyTextDirection(elements.outputText, result.data);
 
+        // Show detected source language when auto-detect is used
+        if (elements.sourceLangSelect.value === "AUTO" && result.source_lang) {
+          const detectedLangName =
+            languages[result.source_lang] || result.source_lang;
+          showStatus(`Detected language: ${detectedLangName}`, "success");
+        }
+
         // Add to history if translation was successful
         if (result.data && text) {
+          // Use detected language for history when auto-detect is used
+          const actualSourceLang =
+            elements.sourceLangSelect.value === "AUTO" && result.source_lang
+              ? result.source_lang
+              : elements.sourceLangSelect.value;
+
           addToHistory(
             text,
             result.data,
-            elements.sourceLangSelect.value,
+            actualSourceLang,
             elements.targetLangSelect.value
           );
         }

@@ -161,20 +161,20 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {string} chunk - Text chunk to translate
    * @param {string} sourceLang - Source language
    * @param {string} targetLang - Target language
-   * @param {string} apiUrl - API URL to use
+   * @param {string} apiUrl - API URL to use (всегда /api/translate)
+   * @param {string} customApiUrl - Custom API URL для проксирования
    * @returns {Promise<string>} Translated text
    */
-  async function translateChunk(chunk, sourceLang, targetLang, apiUrl) {
+  async function translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl = null) {
     const payload = {
       text: chunk,
       source_lang: sourceLang === "AUTO" ? undefined : sourceLang,
       target_lang: targetLang,
     };
 
-    // Если используется serverless API, добавляем api_url в payload для проксирования
-    if (apiUrl === CONFIG.DEFAULT_API_URL && elements.apiUrlInput.value.trim() && 
-        elements.apiUrlInput.value.trim() !== CONFIG.DEFAULT_API_URL) {
-      payload.api_url = elements.apiUrlInput.value.trim();
+    // Добавляем api_url в payload для проксирования через serverless функцию
+    if (customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
+      payload.api_url = customApiUrl;
     }
 
     const response = await fetch(apiUrl, {
@@ -303,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedAutoTranslate =
       localStorage.getItem("autoTranslateEnabled") !== "false";
 
-    elements.apiUrlInput.value = savedUrl || CONFIG.FALLBACK_API_URL;
+    elements.apiUrlInput.value = savedUrl || "";
     elements.delayInput.value = savedDelay;
     elements.autoTranslateToggle.checked = savedAutoTranslate;
 
@@ -524,13 +524,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showStatus("", "success"); // Clear status
 
     try {
-      // Определяем API URL
-      let apiUrl = CONFIG.DEFAULT_API_URL;
+      // ВСЕГДА используем нашу serverless API функцию
+      const apiUrl = CONFIG.DEFAULT_API_URL; // /api/translate
       const customApiUrl = elements.apiUrlInput.value.trim();
-      
-      if (customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
-        apiUrl = customApiUrl;
-      }
 
       const sourceLang = elements.sourceLangSelect.value;
       const targetLang = elements.targetLangSelect.value;
@@ -538,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Проверяем размер текста и разделяем на части если необходимо
       if (text.length <= CONFIG.CHUNK_SIZE) {
         // Небольшой текст - обычный перевод
-        const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl);
+        const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl, customApiUrl);
         
         // Проверяем, что это всё ещё актуальный перевод
         if (thisTranslationId !== currentTranslationId) return;
@@ -568,7 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
           
           const batch = chunks.slice(i, i + CONFIG.PARALLEL_CHUNKS);
           const batchPromises = batch.map(chunk => 
-            translateChunk(chunk, sourceLang, targetLang, apiUrl)
+            translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl)
           );
           
           try {
@@ -591,7 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             for (let j = 0; j < batch.length; j++) {
               try {
-                const retryResult = await translateChunk(batch[j], sourceLang, targetLang, apiUrl);
+                const retryResult = await translateChunk(batch[j], sourceLang, targetLang, apiUrl, customApiUrl);
                 translatedChunks.push(retryResult);
                 completedChunks++;
               } catch (retryError) {

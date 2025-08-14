@@ -1,9 +1,8 @@
 {
-  "version": 2,
-  "name": "translateai-app",
   "functions": {
     "api/translate.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "runtime": "nodejs18.x"
     }
   },
   "headers": [

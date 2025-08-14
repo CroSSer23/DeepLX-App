@@ -4,15 +4,10 @@
   "description": "AI-powered translation app supporting up to 1 million characters",
   "main": "index.html",
   "scripts": {
-    "dev": "vercel dev",
     "build": "echo 'Build completed'",
-    "start": "vercel dev",
     "deploy-check": "node deploy-check.js"
   },
   "dependencies": {},
-  "devDependencies": {
-    "vercel": "^32.0.0"
-  },
   "keywords": [
     "translation",
     "translateai",
@@ -31,6 +26,6 @@
   },
   "homepage": "https://translate.crosser.software",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   }
 }

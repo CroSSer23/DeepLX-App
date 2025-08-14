@@ -11,11 +11,13 @@
 - ✅ Убрана ненужная зависимость `node-fetch` 
 - ✅ Используется встроенный `fetch` из Node.js 18+
 - ✅ Пустой объект dependencies в package.json
+- ✅ Убраны devDependencies (Vercel CLI)
 
 ### 3. Конфигурация Vercel
 - ✅ Упрощен vercel.json (убраны builds и routes)
-- ✅ Оставлены только functions и headers
-- ✅ Обновлено название проекта на translateai-app
+- ✅ Добавлен runtime: "nodejs18.x"
+- ✅ Убрано предупреждение о версии Node.js
+- ✅ Фиксированная версия engines: "node": "18.x"
 
 ### 4. API функция
 - ✅ Упрощена структура кода

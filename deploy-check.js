@@ -63,10 +63,10 @@ try {
     console.log('✅ Нет обязательных зависимостей - используются встроенные модули');
   }
 
-  if (packageJson.scripts && packageJson.scripts.dev) {
-    console.log('✅ Скрипт dev найден');
+  if (packageJson.scripts && packageJson.scripts.build) {
+    console.log('✅ Скрипт build найден');
   } else {
-    console.log('⚠️ Рекомендуется добавить скрипт "dev"');
+    console.log('⚠️ Рекомендуется добавить скрипт "build"');
   }
 
 } catch (error) {
@@ -81,14 +81,14 @@ let vercelOk = true;
 try {
   const vercelJson = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
   
-  if (vercelJson.version) {
-    console.log('✅ Версия Vercel указана');
-  } else {
-    console.log('⚠️ Рекомендуется указать версию Vercel');
-  }
-
   if (vercelJson.functions) {
     console.log('✅ Конфигурация functions найдена');
+    
+    if (vercelJson.functions['api/translate.js'] && vercelJson.functions['api/translate.js'].runtime) {
+      console.log('✅ Runtime Node.js указан');
+    } else {
+      console.log('⚠️ Runtime не указан, будет использован по умолчанию');
+    }
   } else {
     console.log('⚠️ Конфигурация functions не найдена');
   }

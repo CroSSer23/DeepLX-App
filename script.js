@@ -157,15 +157,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
-   * Translates a single chunk of text
+   * Translates a single chunk of text with retry logic
    * @param {string} chunk - Text chunk to translate
    * @param {string} sourceLang - Source language
    * @param {string} targetLang - Target language
    * @param {string} apiUrl - API URL to use (всегда /api/translate)
    * @param {string} customApiUrl - Custom API URL для проксирования
+   * @param {number} maxRetries - Maximum number of retries
+   * @param {number} chunkIndex - Index of chunk for logging
    * @returns {Promise<string>} Translated text
    */
-  async function translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl = null) {
+  async function translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl = null, maxRetries = 3, chunkIndex = 0) {
     const payload = {
       text: chunk,
       source_lang: sourceLang === "AUTO" ? undefined : sourceLang,
@@ -177,25 +179,48 @@ document.addEventListener("DOMContentLoaded", () => {
       payload.api_url = customApiUrl;
     }
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-    });
+    console.log(`🔄 Перевод части ${chunkIndex + 1}: ${chunk.length} символов`);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`📡 Попытка ${attempt}/${maxRetries} для части ${chunkIndex + 1}`);
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+        });
 
-    const result = await response.json();
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Неизвестная ошибка');
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+        }
 
-    if (result.code === 200 && result.data) {
-      return result.data;
-    } else {
-      throw new Error(`API Error: ${result.message || result.error || "Unknown error"}`);
+        const result = await response.json();
+
+        if (result.code === 200 && result.data) {
+          console.log(`✅ Часть ${chunkIndex + 1} переведена успешно (попытка ${attempt})`);
+          return result.data;
+        } else {
+          throw new Error(`API Error: ${result.message || result.error || "Неизвестная ошибка"}`);
+        }
+
+      } catch (error) {
+        console.error(`❌ Ошибка части ${chunkIndex + 1}, попытка ${attempt}:`, error.message);
+        
+        if (attempt === maxRetries) {
+          console.error(`🚫 Все попытки исчерпаны для части ${chunkIndex + 1}`);
+          throw new Error(`Не удалось перевести часть ${chunkIndex + 1} после ${maxRetries} попыток: ${error.message}`);
+        }
+        
+        // Пауза перед повтором с экспоненциальной задержкой
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`⏳ Ожидание ${delay}мс перед повтором...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -461,13 +486,43 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Displays status message with enhanced animation
    * @param {string} message - Message to display
-   * @param {string} type - Message type ('error' or 'success')
+   * @param {string} type - Message type ('error', 'success', 'info', 'progress')
+   * @param {boolean} persistent - Whether message should auto-hide
    */
-  function showStatus(message, type = "error") {
+  function showStatus(message, type = "error", persistent = false) {
     elements.statusMessage.textContent = message;
-    elements.statusMessage.className = `text-sm h-5 text-right transition-all duration-300 ${
-      type === "error" ? "text-red-400" : "text-green-400"
-    }`;
+    
+    // Убираем старые классы анимации
+    elements.statusMessage.classList.remove("progress-counter", "updating", "completion-animation");
+    
+    let className = "text-sm h-5 text-right transition-all duration-300 ";
+    
+    switch (type) {
+      case "error":
+        className += "text-red-400";
+        break;
+      case "success":
+        className += "text-green-400";
+        break;
+      case "progress":
+        className += "text-blue-400 progress-counter";
+        break;
+      case "info":
+        className += "text-yellow-400";
+        break;
+      default:
+        className += "text-green-400";
+    }
+    
+    elements.statusMessage.className = className;
+
+    // Добавляем анимацию обновления для progress
+    if (type === "progress") {
+      elements.statusMessage.classList.add("updating");
+      setTimeout(() => {
+        elements.statusMessage.classList.remove("updating");
+      }, 600);
+    }
 
     // Add fade-in animation
     elements.statusMessage.style.opacity = "0";
@@ -478,16 +533,37 @@ document.addEventListener("DOMContentLoaded", () => {
       elements.statusMessage.style.transform = "translateY(0)";
     }, 50);
 
-    // Auto-hide message after 4 seconds
-    if (message) {
+    // Auto-hide message after time based on type
+    if (message && !persistent) {
+      const hideDelay = type === "progress" ? 2000 : type === "success" ? 5000 : 4000;
       setTimeout(() => {
         elements.statusMessage.style.opacity = "0";
         setTimeout(() => {
           elements.statusMessage.textContent = "";
           elements.statusMessage.style.opacity = "1";
+          elements.statusMessage.classList.remove("progress-counter", "updating", "completion-animation");
         }, 300);
-      }, 4000);
+      }, hideDelay);
     }
+  }
+
+  /**
+   * Shows completion animation and message
+   * @param {string} message - Completion message
+   */
+  function showCompletionStatus(message) {
+    elements.statusMessage.textContent = message;
+    elements.statusMessage.className = "text-sm h-5 text-right text-green-400 completion-animation";
+    
+    // Keep the completion message visible longer
+    setTimeout(() => {
+      elements.statusMessage.style.opacity = "0";
+      setTimeout(() => {
+        elements.statusMessage.textContent = "";
+        elements.statusMessage.style.opacity = "1";
+        elements.statusMessage.classList.remove("completion-animation");
+      }, 300);
+    }, 6000);
   }
 
   // Translation function
@@ -534,7 +610,10 @@ document.addEventListener("DOMContentLoaded", () => {
       // Проверяем размер текста и разделяем на части если необходимо
       if (text.length <= CONFIG.CHUNK_SIZE) {
         // Небольшой текст - обычный перевод
-        const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl, customApiUrl);
+        console.log(`📝 Начинаем перевод небольшого текста (${text.length} символов)`);
+        showStatus("Переводим текст...", "progress");
+        
+        const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl, customApiUrl, 3, 0);
         
         // Проверяем, что это всё ещё актуальный перевод
         if (thisTranslationId !== currentTranslationId) return;
@@ -542,7 +621,8 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.outputText.value = translatedText;
         applyTextDirection(elements.outputText, translatedText);
         
-        showStatus("Перевод выполнен успешно", "success");
+        console.log(`🎉 Перевод завершен успешно!`);
+        showCompletionStatus(`🎉 Перевод завершен! Переведено ${text.length} символов`);
 
         // Add to history
         addToHistory(text, translatedText, sourceLang, targetLang);
@@ -552,28 +632,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const chunks = splitTextIntoChunks(text, CONFIG.CHUNK_SIZE);
         const totalChunks = chunks.length;
         
-        showStatus(`Переводится большой текст: ${totalChunks} частей...`, "success");
+        console.log(`📚 Начинаем перевод большого текста: ${text.length} символов, ${totalChunks} частей`);
+        showStatus(`Разделяем текст на ${totalChunks} частей для перевода...`, "info");
         
         // Переводим части параллельно (по несколько одновременно)
         const translatedChunks = [];
         let completedChunks = 0;
+        let totalErrors = 0;
         
         for (let i = 0; i < chunks.length; i += CONFIG.PARALLEL_CHUNKS) {
           // Проверяем, что это всё ещё актуальный перевод
           if (thisTranslationId !== currentTranslationId) return;
           
           const batch = chunks.slice(i, i + CONFIG.PARALLEL_CHUNKS);
-          const batchPromises = batch.map(chunk => 
-            translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl)
+          const batchStartIndex = i;
+          const batchPromises = batch.map((chunk, localIndex) => 
+            translateChunk(chunk, sourceLang, targetLang, apiUrl, customApiUrl, 3, batchStartIndex + localIndex)
           );
           
           try {
+            console.log(`🔄 Обрабатываем пакет ${Math.floor(i / CONFIG.PARALLEL_CHUNKS) + 1} (части ${i + 1}-${Math.min(i + batch.length, totalChunks)})`);
+            
             const batchResults = await Promise.all(batchPromises);
             translatedChunks.push(...batchResults);
             
             completedChunks += batch.length;
             const progress = Math.round((completedChunks / totalChunks) * 100);
-            showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "success");
+            console.log(`✅ Пакет завершен. Прогресс: ${completedChunks}/${totalChunks} (${progress}%)`);
+            showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "progress");
             
             // Обновляем результат по мере перевода
             const currentResult = translatedChunks.join(' ');
@@ -581,20 +667,37 @@ document.addEventListener("DOMContentLoaded", () => {
             applyTextDirection(elements.outputText, currentResult);
             
           } catch (error) {
-            console.error('Ошибка при переводе части:', error);
-            // Если одна из частей не удалась, пытаемся перевести её снова
-            showStatus(`Ошибка при переводе части ${i + 1}. Повторная попытка...`);
+            console.error('❌ Ошибка в пакете:', error);
+            totalErrors++;
+            
+            // Обрабатываем каждую часть в пакете индивидуально
+            showStatus(`⚠️ Ошибка в пакете, обрабатываем части индивидуально...`, "info");
             
             for (let j = 0; j < batch.length; j++) {
+              const chunkIndex = i + j;
               try {
-                const retryResult = await translateChunk(batch[j], sourceLang, targetLang, apiUrl, customApiUrl);
+                console.log(`🔄 Индивидуальная обработка части ${chunkIndex + 1}/${totalChunks}`);
+                const retryResult = await translateChunk(batch[j], sourceLang, targetLang, apiUrl, customApiUrl, 3, chunkIndex);
                 translatedChunks.push(retryResult);
                 completedChunks++;
+                
+                const progress = Math.round((completedChunks / totalChunks) * 100);
+                showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "progress");
+                
               } catch (retryError) {
-                console.error('Повторная ошибка при переводе части:', retryError);
-                translatedChunks.push(`[Ошибка перевода части ${i + j + 1}]`);
+                console.error(`🚫 Критическая ошибка части ${chunkIndex + 1}:`, retryError);
+                totalErrors++;
+                const errorText = `[❌ Ошибка части ${chunkIndex + 1}: ${retryError.message}]`;
+                translatedChunks.push(errorText);
                 completedChunks++;
+                
+                showStatus(`⚠️ Часть ${chunkIndex + 1} пропущена из-за ошибки`, "error");
               }
+              
+              // Обновляем результат после каждой части
+              const currentResult = translatedChunks.join(' ');
+              elements.outputText.value = currentResult;
+              applyTextDirection(elements.outputText, currentResult);
             }
           }
         }
@@ -606,7 +709,26 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.outputText.value = finalResult;
         applyTextDirection(elements.outputText, finalResult);
         
-        showStatus(`Перевод завершен! Переведено ${totalChunks} частей`, "success");
+        // Подробная статистика завершения
+        const successfulChunks = totalChunks - totalErrors;
+        const originalLength = text.length;
+        const translatedLength = finalResult.length;
+        
+        console.log(`🎉 ПЕРЕВОД ЗАВЕРШЕН!`);
+        console.log(`📊 Статистика:`);
+        console.log(`   - Исходный текст: ${originalLength.toLocaleString()} символов`);
+        console.log(`   - Переведенный текст: ${translatedLength.toLocaleString()} символов`);
+        console.log(`   - Обработано частей: ${totalChunks}`);
+        console.log(`   - Успешно: ${successfulChunks}`);
+        console.log(`   - Ошибок: ${totalErrors}`);
+        
+        if (totalErrors === 0) {
+          showCompletionStatus(`🎉 Перевод завершен идеально! ${originalLength.toLocaleString()} символов, ${totalChunks} частей`);
+        } else if (successfulChunks > totalErrors) {
+          showCompletionStatus(`✅ Перевод завершен с частичными ошибками: ${successfulChunks}/${totalChunks} частей переведено`);
+        } else {
+          showStatus(`⚠️ Перевод завершен с множественными ошибками: ${totalErrors} из ${totalChunks} частей`, "error");
+        }
 
         // Add to history (для больших текстов сохраняем только первые 1000 символов)
         const historyText = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
@@ -618,20 +740,31 @@ document.addEventListener("DOMContentLoaded", () => {
       // Проверяем актуальность перевода
       if (thisTranslationId !== currentTranslationId) return;
       
-      console.error("Translation request failed:", error);
-      let errorMessage = `Ошибка: ${error.message}`;
+      console.error("🚫 КРИТИЧЕСКАЯ ОШИБКА ПЕРЕВОДА:", error);
+      let errorMessage = `❌ Критическая ошибка: ${error.message}`;
       
       if (error instanceof TypeError) {
-        errorMessage = "Ошибка: Не удалось выполнить запрос. Проверьте интернет-соединение.";
+        errorMessage = "🌐 Ошибка сети: Не удалось выполнить запрос. Проверьте интернет-соединение.";
+        console.error("🌐 Проблема с сетевым подключением");
+      } else if (error.message.includes("AbortError")) {
+        errorMessage = "⏱️ Превышено время ожидания. Попробуйте разделить текст на меньшие части.";
+        console.error("⏱️ Таймаут операции");
       }
       
-      showStatus(errorMessage);
+      showStatus(errorMessage, "error", true);
       elements.outputText.value = "";
+      
+      console.log("📋 Рекомендации:");
+      console.log("   - Проверьте интернет-соединение");
+      console.log("   - Попробуйте меньший объем текста");
+      console.log("   - Проверьте настройки API");
+      
     } finally {
       // Проверяем актуальность перед завершением
       if (thisTranslationId === currentTranslationId) {
         isTranslating = false;
         setLoading(false);
+        console.log("🔄 Перевод завершен, ресурсы освобождены");
       }
     }
   }

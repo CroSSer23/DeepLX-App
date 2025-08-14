@@ -163,4 +163,6 @@ vercel dev --debug
 
 ---
 
+**Made with ❤️ by [crosser.software](https://crosser.software)**
+
 **Готово к развертыванию! 🎉**

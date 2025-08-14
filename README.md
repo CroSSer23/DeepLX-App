@@ -1,17 +1,21 @@
-# DeepLX App
+# TranslateAI
 
-A modern, free web-based translation app powered by the DeepLX API. This app provides a clean, responsive interface for translating text between 30+ languages with features like auto-detection, translation history, and RTL (Right-to-Left) language support.
+A modern, free AI-powered translation app supporting up to 1 million characters. This app provides a clean, responsive interface for translating large texts between 30+ languages with features like auto-detection, translation history, and RTL (Right-to-Left) language support.
 
 ## 🌟 Features
 
+- **Large Text Support**: Translate up to 1 million characters at once with intelligent chunking
 - **Multi-language Support**: Translate between 30+ languages with automatic language detection
 - **Auto-translation**: Automatically translates text as you type (with customizable delay)
+- **Smart Chunking**: Automatically splits large texts into optimal parts for translation
+- **Parallel Processing**: Translates multiple text chunks simultaneously for faster results
+- **Real-time Progress**: Shows translation progress for large texts
 - **Translation History**: Keeps track of your translation history with local storage
 - **Language Swapping**: Quick swap between source and target languages
 - **Copy to Clipboard**: One-click copying of translation results
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
 - **RTL Language Support**: Proper support for right-to-left languages
-- **Dark Theme**: Modern dark UI design for comfortable usage
+- **Modern UI**: Custom dark theme based on #262626 color palette
 - **Keyboard Shortcuts**:
   - `Ctrl+Enter`: Manual translation
   - `Esc`: Close panels
@@ -22,7 +26,7 @@ A modern, free web-based translation app powered by the DeepLX API. This app pro
 
 ## 🚀 Live Demo
 
-Visit the live app at: [https://deeplx.xi-xu.me](https://deeplx.xi-xu.me)
+Visit the live app at: [https://translate.crosser.software](https://translate.crosser.software)
 
 ## 📋 Prerequisites
 
@@ -41,8 +45,8 @@ Simply open `index.html` in your web browser. The app will work with the default
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/xixu-me/DeepLX-App.git
-   cd DeepLX-App
+   git clone https://github.com/crosser-software/TranslateAI.git
+   cd TranslateAI
    ```
 
 2. Open `index.html` in your preferred web browser or serve it using a local web server:
@@ -86,7 +90,14 @@ The app uses a default DeepLX API endpoint, but you can configure your own:
 
 ## 🔌 API Integration
 
-The app integrates with the DeepLX API, which is a free alternative to DeepL's official API. The default endpoint is pre-configured, but you can use your own DeepLX instance.
+The app integrates with translation APIs and includes smart text chunking for large documents. For texts larger than 500 characters, the app automatically:
+
+1. **Splits text** into optimal chunks (preserving sentence boundaries)
+2. **Translates in parallel** (up to 3 chunks simultaneously)
+3. **Shows real-time progress** during translation
+4. **Reassembles** the translated text seamlessly
+
+You can configure your own translation API endpoint in the settings.
 
 ### API Request Format
 
@@ -144,10 +155,9 @@ This repository is licensed under the MIT License - see the [LICENSE](LICENSE) f
 
 ## 🙏 Acknowledgments
 
-- [DeepLX](https://github.com/xixu-me/DeepLX) - The translation API backend
 - [Tailwind CSS](https://tailwindcss.com/) - For the beautiful UI framework
 - [Lucide Icons](https://lucide.dev/) - For the clean, modern icons
 
 ---
 
-**Made with ❤️ by [Xi Xu](https://xi-xu.me)**
+**Made with ❤️ by [crosser.software](https://crosser.software)**

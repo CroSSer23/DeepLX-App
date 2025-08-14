@@ -1,28 +1,31 @@
 /**
- * DeepLX Translation App
- * A modern web app for DeepL translation using the DeepLX API
+ * TranslateAI - AI-Powered Translation App
+ * A modern web app for AI translation supporting up to 1 million characters
  *
  * Features:
  * - Auto-translation with configurable delay
+ * - Large text support (up to 1M characters) with chunking
  * - Translation history with local storage
  * - RTL/LTR text direction support
  * - Responsive design with modern UI
  * - Keyboard shortcuts and accessibility
  *
- * @author Xi Xu
- * @version 1.0.0
+ * @author crosser.software
+ * @version 2.0.0
  * @license MIT
  */
 
 document.addEventListener("DOMContentLoaded", () => {
   // Configuration constants
   const CONFIG = {
-    MAX_CHARS: 5000,
+    MAX_CHARS: 1000000, // Поддержка до 1 миллиона символов
+    CHUNK_SIZE: 500, // Размер части для разделения больших текстов
     DEFAULT_API_URL: "/api/translate", // Использование serverless API Vercel
     FALLBACK_API_URL: "https://dplx.xi-xu.me/translate", // Запасной API endpoint
     DEFAULT_DELAY: 1000,
     MAX_HISTORY_ITEMS: 50,
     USE_SERVERLESS: true, // Флаг для использования serverless API
+    PARALLEL_CHUNKS: 3, // Количество параллельных запросов для частей
   };
 
   // Supported languages list - DeepL API compatible language codes
@@ -88,6 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // App state
   let translateTimeout;
   let translationHistory = [];
+  let isTranslating = false;
+  let currentTranslationId = 0;
 
   // Function to detect Arabic text
   /**
@@ -103,6 +108,95 @@ document.addEventListener("DOMContentLoaded", () => {
     const arabicRegex =
       /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
     return arabicRegex.test(text);
+  }
+
+  /**
+   * Splits large text into smaller chunks for translation
+   * @param {string} text - Text to split
+   * @param {number} chunkSize - Size of each chunk
+   * @returns {Array<string>} Array of text chunks
+   */
+  function splitTextIntoChunks(text, chunkSize = CONFIG.CHUNK_SIZE) {
+    if (text.length <= chunkSize) {
+      return [text];
+    }
+
+    const chunks = [];
+    let currentIndex = 0;
+
+    while (currentIndex < text.length) {
+      let endIndex = currentIndex + chunkSize;
+      
+      // Если не последний кусок, ищем ближайший разделитель
+      if (endIndex < text.length) {
+        const searchStart = Math.max(currentIndex, endIndex - 50);
+        const searchText = text.substring(searchStart, endIndex + 50);
+        
+        // Ищем разделители в порядке приоритета
+        const separators = ['\n\n', '. ', '.\n', '! ', '!\n', '? ', '?\n', '\n', ' '];
+        let bestSeparatorIndex = -1;
+        
+        for (const separator of separators) {
+          const sepIndex = searchText.lastIndexOf(separator);
+          if (sepIndex !== -1) {
+            bestSeparatorIndex = searchStart + sepIndex + separator.length;
+            break;
+          }
+        }
+        
+        if (bestSeparatorIndex !== -1 && bestSeparatorIndex > currentIndex) {
+          endIndex = bestSeparatorIndex;
+        }
+      }
+
+      chunks.push(text.substring(currentIndex, endIndex).trim());
+      currentIndex = endIndex;
+    }
+
+    return chunks.filter(chunk => chunk.length > 0);
+  }
+
+  /**
+   * Translates a single chunk of text
+   * @param {string} chunk - Text chunk to translate
+   * @param {string} sourceLang - Source language
+   * @param {string} targetLang - Target language
+   * @param {string} apiUrl - API URL to use
+   * @returns {Promise<string>} Translated text
+   */
+  async function translateChunk(chunk, sourceLang, targetLang, apiUrl) {
+    const payload = {
+      text: chunk,
+      source_lang: sourceLang === "AUTO" ? undefined : sourceLang,
+      target_lang: targetLang,
+    };
+
+    // Если используется serverless API, добавляем api_url в payload для проксирования
+    if (apiUrl === CONFIG.DEFAULT_API_URL && elements.apiUrlInput.value.trim() && 
+        elements.apiUrlInput.value.trim() !== CONFIG.DEFAULT_API_URL) {
+      payload.api_url = elements.apiUrlInput.value.trim();
+    }
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.code === 200 && result.data) {
+      return result.data;
+    } else {
+      throw new Error(`API Error: ${result.message || result.error || "Unknown error"}`);
+    }
   }
 
   /**
@@ -131,16 +225,16 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function updateCharCount() {
     const count = elements.inputText.value.length;
-    elements.charCount.textContent = count;
+    elements.charCount.textContent = count.toLocaleString();
 
     // Apply RTL/LTR direction based on input text
     applyTextDirection(elements.inputText, elements.inputText.value);
 
     // Update color based on character count
     elements.charCount.className = "transition-colors duration-200";
-    if (count > 4500) {
+    if (count > 900000) {
       elements.charCount.classList.add("char-danger");
-    } else if (count > 4000) {
+    } else if (count > 800000) {
       elements.charCount.classList.add("char-warning");
     }
 
@@ -148,11 +242,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (elements.autoTranslateToggle.checked) {
       elements.inputText.placeholder =
         count === 0
-          ? "Enter text to translate here... (Auto-translate enabled)"
-          : "Auto-translate will start after you stop typing...";
+          ? "Введите текст для перевода... (До 1 млн символов, автоперевод включен)"
+          : "Автоперевод запустится после остановки печати...";
     } else {
       elements.inputText.placeholder =
-        "Enter text to translate here... (Auto-translate disabled)";
+        "Введите текст для перевода... (До 1 млн символов, автоперевод отключен)";
     }
   }
 
@@ -403,6 +497,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Main translation function that handles API requests
+   * Supports large texts up to 1 million characters with chunking
    * @param {boolean} isAutoTranslate - Whether this is an automatic translation
    */
   async function translateText(isAutoTranslate = false) {
@@ -415,106 +510,133 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Prevent concurrent translations
+    if (isTranslating) {
+      showStatus("Перевод уже выполняется, пожалуйста, подождите...");
+      return;
+    }
+
+    isTranslating = true;
+    currentTranslationId++;
+    const thisTranslationId = currentTranslationId;
+
     setLoading(true);
     showStatus("", "success"); // Clear status
 
     try {
-      // Определяем API URL - использовать serverless функцию или пользовательский endpoint
-      let apiUrl = CONFIG.DEFAULT_API_URL; // По умолчанию serverless
+      // Определяем API URL
+      let apiUrl = CONFIG.DEFAULT_API_URL;
       const customApiUrl = elements.apiUrlInput.value.trim();
       
-      // Если пользователь указал свой API и он отличается от умолчательного
       if (customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
         apiUrl = customApiUrl;
       }
 
-      const payload = {
-        text: text,
-        source_lang:
-          elements.sourceLangSelect.value === "AUTO"
-            ? undefined
-            : elements.sourceLangSelect.value,
-        target_lang: elements.targetLangSelect.value,
-      };
+      const sourceLang = elements.sourceLangSelect.value;
+      const targetLang = elements.targetLangSelect.value;
 
-      // Если используется serverless API, добавляем api_url в payload для проксирования
-      if (apiUrl === CONFIG.DEFAULT_API_URL && customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
-        payload.api_url = customApiUrl;
-      }
-
-      console.log('Отправка запроса на:', apiUrl, payload);
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-      });
-
-      if (!response.ok) {
-        let errorMessage = `Ошибка API: ${response.status} ${response.statusText}`;
+      // Проверяем размер текста и разделяем на части если необходимо
+      if (text.length <= CONFIG.CHUNK_SIZE) {
+        // Небольшой текст - обычный перевод
+        const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl);
         
-        if (response.status === 429) {
-          errorMessage = "Слишком много запросов. Попробуйте позже.";
-        } else if (response.status === 404) {
-          errorMessage = "API endpoint не найден. Проверьте настройки.";
-        } else if (response.status === 500) {
-          errorMessage = "Внутренняя ошибка сервера перевода.";
-        }
+        // Проверяем, что это всё ещё актуальный перевод
+        if (thisTranslationId !== currentTranslationId) return;
         
-        throw new Error(errorMessage);
-      }
+        elements.outputText.value = translatedText;
+        applyTextDirection(elements.outputText, translatedText);
+        
+        showStatus("Перевод выполнен успешно", "success");
 
-      const result = await response.json();
-
-      if (result.code === 200 && result.data) {
-        elements.outputText.value = result.data;
-
-        // Apply RTL/LTR direction to output text
-        applyTextDirection(elements.outputText, result.data);
-
-        // Show detected source language when auto-detect is used
-        if (elements.sourceLangSelect.value === "AUTO" && result.source_lang) {
-          const detectedLangName =
-            languages[result.source_lang] || result.source_lang;
-          showStatus(`Определен язык: ${detectedLangName}`, "success");
-        }
-
-        // Add to history if translation was successful
-        if (result.data && text) {
-          // Use detected language for history when auto-detect is used
-          const actualSourceLang =
-            elements.sourceLangSelect.value === "AUTO" && result.source_lang
-              ? result.source_lang
-              : elements.sourceLangSelect.value;
-
-          addToHistory(
-            text,
-            result.data,
-            actualSourceLang,
-            elements.targetLangSelect.value
-          );
-        }
+        // Add to history
+        addToHistory(text, translatedText, sourceLang, targetLang);
+        
       } else {
-        // Provide more specific error message from API response
-        const errorMsg = result.message || result.error || "Неизвестная ошибка";
-        throw new Error(`Ошибка перевода: ${errorMsg}`);
+        // Большой текст - разделяем на части
+        const chunks = splitTextIntoChunks(text, CONFIG.CHUNK_SIZE);
+        const totalChunks = chunks.length;
+        
+        showStatus(`Переводится большой текст: ${totalChunks} частей...`, "success");
+        
+        // Переводим части параллельно (по несколько одновременно)
+        const translatedChunks = [];
+        let completedChunks = 0;
+        
+        for (let i = 0; i < chunks.length; i += CONFIG.PARALLEL_CHUNKS) {
+          // Проверяем, что это всё ещё актуальный перевод
+          if (thisTranslationId !== currentTranslationId) return;
+          
+          const batch = chunks.slice(i, i + CONFIG.PARALLEL_CHUNKS);
+          const batchPromises = batch.map(chunk => 
+            translateChunk(chunk, sourceLang, targetLang, apiUrl)
+          );
+          
+          try {
+            const batchResults = await Promise.all(batchPromises);
+            translatedChunks.push(...batchResults);
+            
+            completedChunks += batch.length;
+            const progress = Math.round((completedChunks / totalChunks) * 100);
+            showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "success");
+            
+            // Обновляем результат по мере перевода
+            const currentResult = translatedChunks.join(' ');
+            elements.outputText.value = currentResult;
+            applyTextDirection(elements.outputText, currentResult);
+            
+          } catch (error) {
+            console.error('Ошибка при переводе части:', error);
+            // Если одна из частей не удалась, пытаемся перевести её снова
+            showStatus(`Ошибка при переводе части ${i + 1}. Повторная попытка...`);
+            
+            for (let j = 0; j < batch.length; j++) {
+              try {
+                const retryResult = await translateChunk(batch[j], sourceLang, targetLang, apiUrl);
+                translatedChunks.push(retryResult);
+                completedChunks++;
+              } catch (retryError) {
+                console.error('Повторная ошибка при переводе части:', retryError);
+                translatedChunks.push(`[Ошибка перевода части ${i + j + 1}]`);
+                completedChunks++;
+              }
+            }
+          }
+        }
+        
+        // Финальная проверка актуальности
+        if (thisTranslationId !== currentTranslationId) return;
+        
+        const finalResult = translatedChunks.join(' ');
+        elements.outputText.value = finalResult;
+        applyTextDirection(elements.outputText, finalResult);
+        
+        showStatus(`Перевод завершен! Переведено ${totalChunks} частей`, "success");
+
+        // Add to history (для больших текстов сохраняем только первые 1000 символов)
+        const historyText = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+        const historyResult = finalResult.length > 1000 ? finalResult.substring(0, 1000) + '...' : finalResult;
+        addToHistory(historyText, historyResult, sourceLang, targetLang);
       }
+
     } catch (error) {
+      // Проверяем актуальность перевода
+      if (thisTranslationId !== currentTranslationId) return;
+      
       console.error("Translation request failed:", error);
       let errorMessage = `Ошибка: ${error.message}`;
       
       if (error instanceof TypeError) {
-        // This often indicates a network-level failure
         errorMessage = "Ошибка: Не удалось выполнить запрос. Проверьте интернет-соединение.";
       }
       
       showStatus(errorMessage);
       elements.outputText.value = "";
     } finally {
-      setLoading(false);
+      // Проверяем актуальность перед завершением
+      if (thisTranslationId === currentTranslationId) {
+        isTranslating = false;
+        setLoading(false);
+      }
     }
   }
 

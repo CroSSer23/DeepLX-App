@@ -2,7 +2,7 @@
  * Serverless API функция для перевода текста через DeepLX
  * Развертывается на Vercel как serverless функция
  * 
- * @author Xi Xu
+ * @author crosser.software
  * @version 1.0.0
  */
 
@@ -17,7 +17,7 @@ const corsHeaders = {
 const CONFIG = {
   DEFAULT_DEEPLX_API: 'https://dplx.xi-xu.me/translate',
   TIMEOUT: 25000, // 25 секунд таймаут
-  MAX_TEXT_LENGTH: 5000
+  MAX_TEXT_LENGTH: 1000 // Увеличен лимит для отдельного chunk'а
 };
 
 /**
@@ -57,11 +57,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Проверка длины текста
+    // Проверка длины текста (для отдельного chunk'а)
     if (text.length > CONFIG.MAX_TEXT_LENGTH) {
       return res.status(400).json({
-        error: 'Text too long',
-        message: `Максимальная длина текста: ${CONFIG.MAX_TEXT_LENGTH} символов`
+        error: 'Text chunk too long',
+        message: `Максимальная длина одной части: ${CONFIG.MAX_TEXT_LENGTH} символов`
       });
     }
 

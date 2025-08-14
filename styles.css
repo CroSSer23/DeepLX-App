@@ -4,7 +4,7 @@
  * This stylesheet provides custom styling for the DeepLX translation app,
  * including RTL/LTR text support, animations, and enhanced UI components.
  * 
- * @author Xi Xu
+ * @author crosser.software
  * @version 1.0.0
  */
 
@@ -45,9 +45,9 @@ body {
 
 /* Translation textarea styling */
 .translate-textarea {
-  background-color: #2d3748; /* Dark gray background */
+  background-color: #1a1a1a; /* Darker background based on #262626 */
   color: #e2e8f0; /* Light gray text */
-  border: 1px solid #4a5568; /* Border color */
+  border: 1px solid #404040; /* Border color based on #262626 */
   min-height: 200px; /* Minimum height for better UX */
   resize: vertical; /* Allow vertical resizing only */
 }
@@ -71,15 +71,15 @@ body {
 
 /* Language selector styling */
 .lang-select {
-  background-color: #4a5568;
+  background-color: #404040;
   color: #e2e8f0;
-  border: 1px solid #718096;
+  border: 1px solid #505050;
 }
 
 /* API input field styling */
 .api-input {
-  background-color: #2d3748;
-  border: 1px solid #4a5568;
+  background-color: #1a1a1a;
+  border: 1px solid #404040;
 }
 
 /* Input field enhancements */
@@ -101,7 +101,7 @@ body {
 }
 
 .action-btn:hover:not(:disabled) {
-  background-color: #4a5568;
+  background-color: #404040;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
@@ -136,8 +136,8 @@ body {
 
 /* History item container styling */
 .history-item {
-  background-color: #374151;
-  border: 1px solid #4b5563;
+  background-color: #404040;
+  border: 1px solid #505050;
   border-radius: 0.5rem;
   padding: 0.75rem;
   cursor: pointer;
@@ -145,7 +145,7 @@ body {
 }
 
 .history-item:hover {
-  background-color: #4b5563;
+  background-color: #505050;
   transform: translateX(4px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -196,12 +196,12 @@ body {
 }
 
 #historyList::-webkit-scrollbar-track {
-  background: #374151;
+  background: #404040;
   border-radius: 3px;
 }
 
 #historyList::-webkit-scrollbar-thumb {
-  background: #6b7280;
+  background: #606060;
   border-radius: 3px;
 }
 
@@ -222,8 +222,8 @@ body {
 
 /* Quick tips styling */
 .bg-gray-700 {
-  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-  border: 1px solid #6b7280;
+  background: linear-gradient(135deg, #404040 0%, #505050 100%);
+  border: 1px solid #606060;
 }
 
 /* ==========================================================================

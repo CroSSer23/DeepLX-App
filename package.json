@@ -1,7 +1,7 @@
 {
-  "name": "deeplx-app",
-  "version": "1.0.0",
-  "description": "Веб-приложение для перевода текста с использованием DeepLX API",
+  "name": "translateai-app",
+  "version": "2.0.0",
+  "description": "AI-powered translation app supporting up to 1 million characters",
   "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
@@ -17,19 +17,21 @@
   },
   "keywords": [
     "translation",
-    "deeplx",
+    "translateai",
     "translator",
     "ai-translation",
+    "million-characters",
+    "chunking",
     "serverless",
     "vercel"
   ],
-  "author": "Xi Xu",
+  "author": "crosser.software",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xixu-me/DeepLX-App.git"
+    "url": "https://github.com/crosser-software/DeepLX-App.git"
   },
-  "homepage": "https://deeplx.xi-xu.me",
+  "homepage": "https://translate.crosser.software",
   "engines": {
     "node": ">=18.0.0"
   }

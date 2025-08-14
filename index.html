@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Basic Meta Tags -->
-    <title>DeepLX App - Free DeepL Translation Alternative</title>
+    <title>TranslateAI - Free AI Translation App</title>
     <meta
       name="description"
-      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+      content="Free AI-powered translation app. Translate up to 1 million characters between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
     />
     <meta
       name="keywords"
-      content="translation, translator, DeepLX, AI translation, free translator, language translation, multilingual, auto translate"
+      content="translation, translator, TranslateAI, AI translation, free translator, language translation, multilingual, auto translate, million characters"
     />
-    <meta name="author" content="Xi Xu" />
+    <meta name="author" content="crosser.software" />
     <meta name="robots" content="index, follow" />
     <meta name="language" content="English" />
 
@@ -27,37 +27,37 @@
     <meta property="og:type" content="website" />
     <meta
       property="og:title"
-      content="DeepLX App - Free DeepL Translation Alternative"
+      content="TranslateAI - Free AI Translation App"
     />
     <meta
       property="og:description"
-      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+      content="Free AI-powered translation app. Translate up to 1 million characters between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
     />
     <meta property="og:image" content="logo.png" />
-    <meta property="og:url" content="https://deeplx.xi-xu.me" />
-    <meta property="og:site_name" content="DeepLX App" />
+    <meta property="og:url" content="https://translate.crosser.software" />
+    <meta property="og:site_name" content="TranslateAI" />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="DeepLX App - Free DeepL Translation Alternative"
+      content="TranslateAI - Free AI Translation App"
     />
     <meta
       name="twitter:description"
-      content="Free web-based translation app powered by DeepLX API. Translate text between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
+      content="Free AI-powered translation app. Translate up to 1 million characters between 30+ languages with auto-detection, translation history, and RTL support. No API keys or subscription fees required."
     />
     <meta name="twitter:image" content="logo.png" />
-    <meta name="twitter:creator" content="@xixu_me" />
-    <meta name="twitter:site" content="@xixu_me" />
+    <meta name="twitter:creator" content="@crosser_software" />
+    <meta name="twitter:site" content="@crosser_software" />
 
     <!-- Additional Meta Tags -->
-    <meta name="theme-color" content="#1f2937" />
-    <meta name="msapplication-TileColor" content="#1f2937" />
+    <meta name="theme-color" content="#262626" />
+    <meta name="msapplication-TileColor" content="#262626" />
     <meta name="msapplication-config" content="browserconfig.xml" />
-    <meta name="application-name" content="DeepLX App" />
-    <meta name="apple-mobile-web-app-title" content="DeepLX App" />
+    <meta name="application-name" content="TranslateAI" />
+    <meta name="apple-mobile-web-app-title" content="TranslateAI" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
@@ -66,7 +66,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://deeplx.xi-xu.me" />
+    <link rel="canonical" href="https://translate.crosser.software" />
 
     <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" />
@@ -79,19 +79,20 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body
-    class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4"
+    class="text-gray-200 flex items-center justify-center min-h-screen p-4"
+    style="background-color: #262626;"
   >
     <div class="w-full max-w-4xl mx-auto">
       <header class="text-center mb-6">
         <h1 class="text-4xl font-bold text-white animate-fade-in">
-          DeepLX App
+          TranslateAI
         </h1>
         <p class="text-gray-400 mt-2 animate-fade-in-delay">
-          The web app using the DeepLX API
+          AI-powered translation up to 1 million characters
         </p>
       </header>
 
-      <main class="bg-gray-800 shadow-2xl rounded-xl p-6 animate-slide-up">
+      <main class="shadow-2xl rounded-xl p-6 animate-slide-up" style="background-color: #323232;">
         <!-- Language selection and operation area -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center mb-4">
           <!-- Source language selection -->
@@ -131,11 +132,11 @@
             <textarea
               id="inputText"
               class="translate-textarea w-full p-3 rounded-lg"
-              placeholder="Enter text to translate here... (Auto-translate enabled)"
-              maxlength="5000"
+              placeholder="Введите текст для перевода... (До 1 млн символов)"
+              maxlength="1000000"
             ></textarea>
             <div class="absolute bottom-2 right-2 text-xs text-gray-500">
-              <span id="charCount">0</span>/5000
+              <span id="charCount">0</span>/1,000,000
             </div>
           </div>
           <!-- Output area -->
@@ -235,7 +236,7 @@
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-white flex items-center gap-2">
               <i data-lucide="history" class="w-5 h-5"></i>
-              Translation History
+              История переводов
             </h2>
             <button
               id="closeHistoryButton"
@@ -272,7 +273,7 @@
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-white flex items-center gap-2">
               <i data-lucide="settings" class="w-5 h-5"></i>
-              Settings
+              Настройки
             </h2>
             <button
               id="closeSettingsButton"
@@ -346,31 +347,13 @@
       <footer
         class="text-center mt-6 text-gray-500 text-sm animate-fade-in-delay-3"
       >
-        <p>
-          The default API endpoint is a pre-deployed instance of
-          <a
-            href="https://github.com/xixu-me/DeepLX"
-            target="_blank"
-            class="underline hover:text-gray-300 transition-colors"
-            >https://github.com/xixu-me/DeepLX</a
-          >
-        </p>
-        <p class="mt-1">
-          The source code repository of this app is
-          <a
-            href="https://github.com/xixu-me/DeepLX-App"
-            target="_blank"
-            class="underline hover:text-gray-300 transition-colors"
-            >https://github.com/xixu-me/DeepLX-App</a
-          >
-        </p>
         <p class="mt-1">
           Copyright &copy; 2025
           <a
-            href="https://xi-xu.me"
+            href="https://crosser.software"
             target="_blank"
             class="underline hover:text-gray-300 transition-colors"
-            >Xi Xu</a
+            >crosser.software</a
           >. All rights reserved.
         </p>
       </footer>

@@ -1,0 +1,36 @@
+{
+  "name": "deeplx-app",
+  "version": "1.0.0",
+  "description": "Веб-приложение для перевода текста с использованием DeepLX API",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build completed'",
+    "start": "vercel dev",
+    "deploy-check": "node deploy-check.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "keywords": [
+    "translation",
+    "deeplx",
+    "translator",
+    "ai-translation",
+    "serverless",
+    "vercel"
+  ],
+  "author": "Xi Xu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xixu-me/DeepLX-App.git"
+  },
+  "homepage": "https://deeplx.xi-xu.me",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

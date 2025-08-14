@@ -18,10 +18,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Configuration constants
   const CONFIG = {
     MAX_CHARS: 5000,
-    DEFAULT_API_URL: "https://dplx.xi-xu.me/translate",
+    DEFAULT_API_URL: "/api/translate", // Использование serverless API Vercel
+    FALLBACK_API_URL: "https://dplx.xi-xu.me/translate", // Запасной API endpoint
     DEFAULT_DELAY: 1000,
     MAX_HISTORY_ITEMS: 50,
-    CORS_PROXY: "https://corsproxy.io/?",
+    USE_SERVERLESS: true, // Флаг для использования serverless API
   };
 
   // Supported languages list - DeepL API compatible language codes
@@ -208,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedAutoTranslate =
       localStorage.getItem("autoTranslateEnabled") !== "false";
 
-    elements.apiUrlInput.value = savedUrl || CONFIG.DEFAULT_API_URL;
+    elements.apiUrlInput.value = savedUrl || CONFIG.FALLBACK_API_URL;
     elements.delayInput.value = savedDelay;
     elements.autoTranslateToggle.checked = savedAutoTranslate;
 
@@ -217,14 +218,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const urlToSave = elements.apiUrlInput.value.trim();
       if (urlToSave) {
         localStorage.setItem("deeplxApiUrl", urlToSave);
-        showStatus("API endpoint saved.", "success");
+        showStatus("API endpoint сохранен.", "success");
       }
     });
 
     elements.delayInput.addEventListener("input", () => {
       const delay = elements.delayInput.value;
       localStorage.setItem("autoTranslateDelay", delay);
-      showStatus("Delay setting saved.", "success");
+              showStatus("Настройка задержки сохранена.", "success");
     });
 
     elements.autoTranslateToggle.addEventListener("change", () => {
@@ -233,8 +234,8 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.autoTranslateToggle.checked
       );
       showStatus(
-        `Auto-translate ${
-          elements.autoTranslateToggle.checked ? "enabled" : "disabled"
+        `Автоперевод ${
+          elements.autoTranslateToggle.checked ? "включен" : "отключен"
         }.`,
         "success"
       );
@@ -405,19 +406,10 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {boolean} isAutoTranslate - Whether this is an automatic translation
    */
   async function translateText(isAutoTranslate = false) {
-    const originalApiUrl = elements.apiUrlInput.value.trim();
-    if (!originalApiUrl) {
-      showStatus("Please enter API endpoint.");
-      return;
-    }
-
-    // Using CORS proxy to handle POST requests correctly
-    const API_URL = `${CONFIG.CORS_PROXY}${encodeURIComponent(originalApiUrl)}`;
-
     const text = elements.inputText.value.trim();
     if (!text) {
       if (!isAutoTranslate) {
-        showStatus("Please enter text to translate.");
+        showStatus("Введите текст для перевода.");
       }
       elements.outputText.value = "";
       return;
@@ -427,6 +419,15 @@ document.addEventListener("DOMContentLoaded", () => {
     showStatus("", "success"); // Clear status
 
     try {
+      // Определяем API URL - использовать serverless функцию или пользовательский endpoint
+      let apiUrl = CONFIG.DEFAULT_API_URL; // По умолчанию serverless
+      const customApiUrl = elements.apiUrlInput.value.trim();
+      
+      // Если пользователь указал свой API и он отличается от умолчательного
+      if (customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
+        apiUrl = customApiUrl;
+      }
+
       const payload = {
         text: text,
         source_lang:
@@ -436,26 +437,39 @@ document.addEventListener("DOMContentLoaded", () => {
         target_lang: elements.targetLangSelect.value,
       };
 
-      const response = await fetch(API_URL, {
+      // Если используется serverless API, добавляем api_url в payload для проксирования
+      if (apiUrl === CONFIG.DEFAULT_API_URL && customApiUrl && customApiUrl !== CONFIG.DEFAULT_API_URL) {
+        payload.api_url = customApiUrl;
+      }
+
+      console.log('Отправка запроса на:', apiUrl, payload);
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
       });
 
-      if (response.status === 404) {
-        throw new Error(
-          `Proxy cannot find API endpoint (404). Please check if URL is correct.`
-        );
-      }
       if (!response.ok) {
-        throw new Error(
-          `Network or proxy error: ${response.status} ${response.statusText}`
-        );
+        let errorMessage = `Ошибка API: ${response.status} ${response.statusText}`;
+        
+        if (response.status === 429) {
+          errorMessage = "Слишком много запросов. Попробуйте позже.";
+        } else if (response.status === 404) {
+          errorMessage = "API endpoint не найден. Проверьте настройки.";
+        } else if (response.status === 500) {
+          errorMessage = "Внутренняя ошибка сервера перевода.";
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
 
-      if (result.code === 200) {
+      if (result.code === 200 && result.data) {
         elements.outputText.value = result.data;
 
         // Apply RTL/LTR direction to output text
@@ -465,7 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (elements.sourceLangSelect.value === "AUTO" && result.source_lang) {
           const detectedLangName =
             languages[result.source_lang] || result.source_lang;
-          showStatus(`Detected language: ${detectedLangName}`, "success");
+          showStatus(`Определен язык: ${detectedLangName}`, "success");
         }
 
         // Add to history if translation was successful
@@ -485,16 +499,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } else {
         // Provide more specific error message from API response
-        throw new Error(`API error: ${result.message || "Unknown error"}`);
+        const errorMsg = result.message || result.error || "Неизвестная ошибка";
+        throw new Error(`Ошибка перевода: ${errorMsg}`);
       }
     } catch (error) {
       console.error("Translation request failed:", error);
-      let errorMessage = `Error: ${error.message}`;
+      let errorMessage = `Ошибка: ${error.message}`;
+      
       if (error instanceof TypeError) {
         // This often indicates a network-level failure
-        errorMessage =
-          "Error: Request failed. Please check network connection and browser console.";
+        errorMessage = "Ошибка: Не удалось выполнить запрос. Проверьте интернет-соединение.";
       }
+      
       showStatus(errorMessage);
       elements.outputText.value = "";
     } finally {

@@ -15,7 +15,7 @@
 
 ### 3. Конфигурация Vercel
 - ✅ Упрощен vercel.json (убраны builds и routes)
-- ✅ Добавлен runtime: "nodejs18.x"
+- ✅ Убран некорректный runtime (Vercel использует по умолчанию)
 - ✅ Убрано предупреждение о версии Node.js
 - ✅ Фиксированная версия engines: "node": "18.x"
 
@@ -60,6 +60,9 @@ node deploy-check.js
 
 ### Проблема: "CORS error"
 **Решение**: CORS заголовки теперь установлены и в API функции, и в vercel.json
+
+### Проблема: "Function Runtimes must have a valid version"
+**Решение**: Убран некорректный runtime из vercel.json, Vercel использует Node.js 18.x по умолчанию
 
 ### Проблема: "Function timeout"
 **Решение**: Установлен таймаут 30 секунд в vercel.json

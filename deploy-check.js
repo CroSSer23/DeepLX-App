@@ -84,10 +84,10 @@ try {
   if (vercelJson.functions) {
     console.log('✅ Конфигурация functions найдена');
     
-    if (vercelJson.functions['api/translate.js'] && vercelJson.functions['api/translate.js'].runtime) {
-      console.log('✅ Runtime Node.js указан');
+    if (vercelJson.functions['api/translate.js']) {
+      console.log('✅ Настройки API функции найдены');
     } else {
-      console.log('⚠️ Runtime не указан, будет использован по умолчанию');
+      console.log('⚠️ Настройки API функции не найдены');
     }
   } else {
     console.log('⚠️ Конфигурация functions не найдена');

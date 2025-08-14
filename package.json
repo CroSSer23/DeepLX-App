@@ -9,9 +9,7 @@
     "start": "vercel dev",
     "deploy-check": "node deploy-check.js"
   },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "vercel": "^32.0.0"
   },

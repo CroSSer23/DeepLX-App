@@ -1,0 +1,16 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# JavaScript files
+*.js text eol=lf
+*.json text eol=lf
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+
+# Config files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+vercel.json text eol=lf

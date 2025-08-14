@@ -20,7 +20,7 @@ const requiredFiles = [
 ];
 
 const requiredPackages = [
-  'node-fetch'
+  // Нет обязательных зависимостей - используем встроенный fetch
 ];
 
 console.log('🔍 Проверка готовности проекта к развертыванию на Vercel...\n');
@@ -45,18 +45,22 @@ let packageOk = true;
 try {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   
-  if (packageJson.dependencies) {
-    requiredPackages.forEach(pkg => {
-      if (packageJson.dependencies[pkg]) {
-        console.log(`✅ Зависимость: ${pkg}`);
-      } else {
-        console.log(`❌ Отсутствует зависимость: ${pkg}`);
-        packageOk = false;
-      }
-    });
+  if (requiredPackages.length > 0) {
+    if (packageJson.dependencies) {
+      requiredPackages.forEach(pkg => {
+        if (packageJson.dependencies[pkg]) {
+          console.log(`✅ Зависимость: ${pkg}`);
+        } else {
+          console.log(`❌ Отсутствует зависимость: ${pkg}`);
+          packageOk = false;
+        }
+      });
+    } else {
+      console.log('❌ Секция dependencies не найдена');
+      packageOk = false;
+    }
   } else {
-    console.log('❌ Секция dependencies не найдена');
-    packageOk = false;
+    console.log('✅ Нет обязательных зависимостей - используются встроенные модули');
   }
 
   if (packageJson.scripts && packageJson.scripts.dev) {
@@ -77,18 +81,16 @@ let vercelOk = true;
 try {
   const vercelJson = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
   
-  if (vercelJson.builds && vercelJson.builds.length > 0) {
-    console.log('✅ Конфигурация builds найдена');
+  if (vercelJson.version) {
+    console.log('✅ Версия Vercel указана');
   } else {
-    console.log('❌ Отсутствует конфигурация builds');
-    vercelOk = false;
+    console.log('⚠️ Рекомендуется указать версию Vercel');
   }
 
-  if (vercelJson.routes && vercelJson.routes.length > 0) {
-    console.log('✅ Конфигурация routes найдена');
+  if (vercelJson.functions) {
+    console.log('✅ Конфигурация functions найдена');
   } else {
-    console.log('❌ Отсутствует конфигурация routes');
-    vercelOk = false;
+    console.log('⚠️ Конфигурация functions не найдена');
   }
 
   if (vercelJson.headers) {

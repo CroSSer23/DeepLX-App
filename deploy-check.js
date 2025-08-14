@@ -81,6 +81,18 @@ let vercelOk = true;
 try {
   const vercelJson = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
   
+  if (vercelJson.buildCommand) {
+    console.log('✅ Build command указан');
+  } else {
+    console.log('⚠️ Build command не указан');
+  }
+
+  if (vercelJson.outputDirectory) {
+    console.log('✅ Output directory настроен');
+  } else {
+    console.log('⚠️ Output directory не настроен');
+  }
+  
   if (vercelJson.functions) {
     console.log('✅ Конфигурация functions найдена');
     

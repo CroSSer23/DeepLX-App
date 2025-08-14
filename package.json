@@ -26,6 +26,6 @@
   },
   "homepage": "https://translate.crosser.software",
   "engines": {
-    "node": "18.x"
+    "node": "22.x"
   }
 }

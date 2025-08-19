@@ -196,9 +196,42 @@
               id="loadingSpinner"
               class="hidden w-5 h-5 border-2 border-gray-400 rounded-full"
             ></div>
+            <!-- Progress circle -->
+            <div id="progressContainer" class="hidden relative">
+              <svg class="w-8 h-8 transform -rotate-90" viewBox="0 0 32 32">
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  class="text-gray-600"
+                />
+                <circle
+                  id="progressCircle"
+                  cx="16"
+                  cy="16"
+                  r="14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  stroke-linecap="round"
+                  class="text-blue-400 transition-all duration-300"
+                  stroke-dasharray="87.96"
+                  stroke-dashoffset="87.96"
+                />
+              </svg>
+              <div
+                id="progressText"
+                class="absolute inset-0 flex items-center justify-center text-xs font-bold text-blue-400"
+              >
+                0%
+              </div>
+            </div>
             <div
               id="statusMessage"
-              class="text-green-400 text-sm h-5 text-right"
+              class="text-green-400 text-sm h-5 text-right min-w-0 flex-1"
             ></div>
           </div>
         </div>
@@ -357,6 +390,118 @@
           >. All rights reserved.
         </p>
       </footer>
+    </div>
+
+    <!-- Auth Modal -->
+    <div
+      id="authModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+    >
+      <div
+        class="rounded-xl p-6 w-full max-w-md animate-slide-up shadow-2xl"
+        style="background-color: #323232;"
+      >
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-bold text-white mb-2">
+            🔐 Авторизация через Telegram
+          </h2>
+          <p class="text-gray-400 text-sm">
+            Для доступа к TranslateAI необходимо пройти авторизацию через Telegram бота
+          </p>
+        </div>
+
+        <div id="authStep1" class="space-y-4">
+          <div class="text-center">
+            <button
+              id="startAuthButton"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <i data-lucide="send" class="w-5 h-5"></i>
+              Получить код авторизации
+            </button>
+          </div>
+        </div>
+
+        <div id="authStep2" class="hidden space-y-4">
+          <div class="text-center">
+            <div class="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4 mb-4">
+              <h3 class="text-yellow-400 font-medium mb-2">📱 Ваш код авторизации:</h3>
+              <div
+                id="authCode"
+                class="text-2xl font-mono font-bold text-white bg-gray-700 rounded-lg py-2 px-4 select-all"
+              >
+                ------
+              </div>
+            </div>
+            
+            <div class="space-y-3 text-sm text-gray-300">
+              <p>1. Откройте Telegram и найдите бота <strong id="botUsername">@your_bot</strong></p>
+              <p>2. Отправьте команду <code>/start</code></p>
+              <p>3. Отправьте код авторизации боту</p>
+              <p>4. Дождитесь одобрения администратора</p>
+            </div>
+
+            <div class="mt-4">
+              <a
+                id="telegramBotLink"
+                href="#"
+                target="_blank"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+              >
+                <i data-lucide="external-link" class="w-4 h-4"></i>
+                Открыть бота в Telegram
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div id="authStep3" class="hidden space-y-4">
+          <div class="text-center">
+            <div class="bg-blue-900/20 border border-blue-600 rounded-lg p-4 mb-4">
+              <div class="flex items-center justify-center gap-2 mb-2">
+                <div class="w-4 h-4 border-2 border-blue-400 rounded-full animate-spin border-t-transparent"></div>
+                <span class="text-blue-400 font-medium">Ожидание одобрения...</span>
+              </div>
+              <p class="text-gray-300 text-sm" id="authStatusMessage">
+                Проверяем статус авторизации...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div id="authStep4" class="hidden space-y-4">
+          <div class="text-center">
+            <div class="bg-green-900/20 border border-green-600 rounded-lg p-4 mb-4">
+              <h3 class="text-green-400 font-medium mb-2">✅ Доступ предоставлен!</h3>
+              <p class="text-gray-300 text-sm">
+                Добро пожаловать в TranslateAI! Можете начать использовать сервис.
+              </p>
+            </div>
+            
+            <button
+              id="closeAuthButton"
+              class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors"
+            >
+              Начать использование
+            </button>
+          </div>
+        </div>
+
+        <div id="authError" class="hidden">
+          <div class="bg-red-900/20 border border-red-600 rounded-lg p-4 text-center">
+            <h3 class="text-red-400 font-medium mb-2">❌ Ошибка авторизации</h3>
+            <p class="text-gray-300 text-sm mb-4" id="authErrorMessage">
+              Произошла ошибка при авторизации
+            </p>
+            <button
+              id="retryAuthButton"
+              class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+            >
+              Попробовать снова
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="script.js"></script>

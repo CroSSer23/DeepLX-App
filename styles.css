@@ -278,6 +278,56 @@ body {
   border: 1px solid #606060;
 }
 
+/* Auth Modal Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Auth Modal Styling */
+#authModal {
+  backdrop-filter: blur(8px);
+}
+
+#authModal .hidden {
+  display: none !important;
+}
+
+/* Copy-to-clipboard styling for auth code */
+#authCode {
+  cursor: pointer;
+  user-select: all;
+  transition: all 0.2s ease;
+}
+
+#authCode:hover {
+  background-color: #505050;
+  transform: scale(1.02);
+}
+
 /* ==========================================================================
    Animations and Effects
    ========================================================================== */

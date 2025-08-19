@@ -4,6 +4,9 @@
   "functions": {
     "api/translate.js": {
       "maxDuration": 30
+    },
+    "api/auth.js": {
+      "maxDuration": 30
     }
   },
   "headers": [

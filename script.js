@@ -73,6 +73,9 @@ document.addEventListener("DOMContentLoaded", () => {
     copyButton: document.getElementById("copyButton"),
     loadingSpinner: document.getElementById("loadingSpinner"),
     statusMessage: document.getElementById("statusMessage"),
+    progressContainer: document.getElementById("progressContainer"),
+    progressCircle: document.getElementById("progressCircle"),
+    progressText: document.getElementById("progressText"),
     apiUrlInput: document.getElementById("apiUrlInput"),
     historyButton: document.getElementById("historyButton"),
     settingsButton: document.getElementById("settingsButton"),
@@ -93,6 +96,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let translationHistory = [];
   let isTranslating = false;
   let currentTranslationId = 0;
+  let isAuthenticated = false;
+  let currentSessionId = null;
+  let authCheckInterval = null;
 
   // Function to detect Arabic text
   /**
@@ -577,6 +583,11 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param {boolean} isAutoTranslate - Whether this is an automatic translation
    */
   async function translateText(isAutoTranslate = false) {
+    // Проверяем авторизацию
+    if (!requireAuth()) {
+      return;
+    }
+
     const text = elements.inputText.value.trim();
     if (!text) {
       if (!isAutoTranslate) {
@@ -611,18 +622,25 @@ document.addEventListener("DOMContentLoaded", () => {
       if (text.length <= CONFIG.CHUNK_SIZE) {
         // Небольшой текст - обычный перевод
         console.log(`📝 Начинаем перевод небольшого текста (${text.length} символов)`);
-        showStatus("Переводим текст...", "progress");
+        updateProgress(10);
+        showStaticStatus("Переводим текст...", "info");
         
         const translatedText = await translateChunk(text, sourceLang, targetLang, apiUrl, customApiUrl, 3, 0);
         
         // Проверяем, что это всё ещё актуальный перевод
         if (thisTranslationId !== currentTranslationId) return;
         
+        updateProgress(100);
         elements.outputText.value = translatedText;
         applyTextDirection(elements.outputText, translatedText);
         
         console.log(`🎉 Перевод завершен успешно!`);
-        showCompletionStatus(`🎉 Перевод завершен! Переведено ${text.length} символов`);
+        showStaticStatus(`🎉 Перевод завершен! Переведено ${text.length.toLocaleString()} символов`, "success");
+        
+        // Скрываем прогресс через 2 секунды
+        setTimeout(() => {
+          updateProgress(0, false);
+        }, 2000);
 
         // Add to history
         addToHistory(text, translatedText, sourceLang, targetLang);
@@ -633,7 +651,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const totalChunks = chunks.length;
         
         console.log(`📚 Начинаем перевод большого текста: ${text.length} символов, ${totalChunks} частей`);
-        showStatus(`Разделяем текст на ${totalChunks} частей для перевода...`, "info");
+        updateProgress(5);
+        showStaticStatus(`Разделено на ${totalChunks} частей для перевода...`, "info");
         
         // Переводим части параллельно (по несколько одновременно)
         const translatedChunks = [];
@@ -659,7 +678,8 @@ document.addEventListener("DOMContentLoaded", () => {
             completedChunks += batch.length;
             const progress = Math.round((completedChunks / totalChunks) * 100);
             console.log(`✅ Пакет завершен. Прогресс: ${completedChunks}/${totalChunks} (${progress}%)`);
-            showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "progress");
+            updateProgress(progress);
+            showStaticStatus(`Переведено ${completedChunks}/${totalChunks} частей`, "info");
             
             // Обновляем результат по мере перевода
             const currentResult = translatedChunks.join(' ');
@@ -671,7 +691,7 @@ document.addEventListener("DOMContentLoaded", () => {
             totalErrors++;
             
             // Обрабатываем каждую часть в пакете индивидуально
-            showStatus(`⚠️ Ошибка в пакете, обрабатываем части индивидуально...`, "info");
+            showStaticStatus(`⚠️ Ошибка в пакете, обрабатываем части индивидуально...`, "warning");
             
             for (let j = 0; j < batch.length; j++) {
               const chunkIndex = i + j;
@@ -682,7 +702,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 completedChunks++;
                 
                 const progress = Math.round((completedChunks / totalChunks) * 100);
-                showStatus(`Переведено ${completedChunks}/${totalChunks} частей (${progress}%)`, "progress");
+                updateProgress(progress);
+                showStaticStatus(`Восстановлено: ${completedChunks}/${totalChunks} частей`, "info");
                 
               } catch (retryError) {
                 console.error(`🚫 Критическая ошибка части ${chunkIndex + 1}:`, retryError);
@@ -691,7 +712,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 translatedChunks.push(errorText);
                 completedChunks++;
                 
-                showStatus(`⚠️ Часть ${chunkIndex + 1} пропущена из-за ошибки`, "error");
+                const progress = Math.round((completedChunks / totalChunks) * 100);
+                updateProgress(progress);
+                showStaticStatus(`⚠️ Часть ${chunkIndex + 1} пропущена из-за ошибки`, "warning");
               }
               
               // Обновляем результат после каждой части
@@ -723,12 +746,20 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(`   - Ошибок: ${totalErrors}`);
         
         if (totalErrors === 0) {
-          showCompletionStatus(`🎉 Перевод завершен идеально! ${originalLength.toLocaleString()} символов, ${totalChunks} частей`);
+          updateProgress(100);
+          showStaticStatus(`🎉 Перевод завершен идеально! ${originalLength.toLocaleString()} символов, ${totalChunks} частей`, "success");
         } else if (successfulChunks > totalErrors) {
-          showCompletionStatus(`✅ Перевод завершен с частичными ошибками: ${successfulChunks}/${totalChunks} частей переведено`);
+          updateProgress(100);
+          showStaticStatus(`✅ Завершено с частичными ошибками: ${successfulChunks}/${totalChunks} частей переведено`, "success");
         } else {
-          showStatus(`⚠️ Перевод завершен с множественными ошибками: ${totalErrors} из ${totalChunks} частей`, "error");
+          updateProgress(100);
+          showStaticStatus(`⚠️ Завершено с ошибками: ${totalErrors} из ${totalChunks} частей`, "warning");
         }
+        
+        // Скрываем прогресс через 3 секунды
+        setTimeout(() => {
+          updateProgress(0, false);
+        }, 3000);
 
         // Add to history (для больших текстов сохраняем только первые 1000 символов)
         const historyText = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
@@ -798,6 +829,69 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function setLoading(isLoading) {
     elements.loadingSpinner.classList.toggle("hidden", !isLoading);
+  }
+
+  /**
+   * Updates progress circle and text
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {boolean} show - Whether to show progress circle
+   */
+  function updateProgress(progress, show = true) {
+    if (show) {
+      elements.progressContainer.classList.remove("hidden");
+      elements.loadingSpinner.classList.add("hidden");
+      
+      // Calculate stroke-dashoffset for progress circle
+      const circumference = 87.96; // 2 * π * 14
+      const offset = circumference - (progress / 100) * circumference;
+      
+      elements.progressCircle.style.strokeDashoffset = offset;
+      elements.progressText.textContent = `${Math.round(progress)}%`;
+      
+      // Color coding based on progress
+      if (progress < 30) {
+        elements.progressCircle.className = "text-blue-400 transition-all duration-300";
+        elements.progressText.className = "absolute inset-0 flex items-center justify-center text-xs font-bold text-blue-400";
+      } else if (progress < 70) {
+        elements.progressCircle.className = "text-yellow-400 transition-all duration-300";
+        elements.progressText.className = "absolute inset-0 flex items-center justify-center text-xs font-bold text-yellow-400";
+      } else {
+        elements.progressCircle.className = "text-green-400 transition-all duration-300";
+        elements.progressText.className = "absolute inset-0 flex items-center justify-center text-xs font-bold text-green-400";
+      }
+    } else {
+      elements.progressContainer.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Shows static status message without changing progress
+   * @param {string} message - Message to display
+   * @param {string} type - Message type
+   */
+  function showStaticStatus(message, type = "info") {
+    // Не изменяем элемент прогресса, только статус
+    let className = "text-sm h-5 text-right min-w-0 flex-1 transition-opacity duration-300 ";
+    
+    switch (type) {
+      case "error":
+        className += "text-red-400";
+        break;
+      case "success":
+        className += "text-green-400";
+        break;
+      case "info":
+        className += "text-blue-400";
+        break;
+      case "warning":
+        className += "text-yellow-400";
+        break;
+      default:
+        className += "text-gray-400";
+    }
+    
+    elements.statusMessage.className = className;
+    elements.statusMessage.textContent = message;
   }
 
   /**
@@ -952,6 +1046,197 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize
   /**
+   * Authentication Functions
+   */
+
+  /**
+   * Проверяет статус авторизации пользователя
+   */
+  function checkAuthStatus() {
+    const savedAuth = localStorage.getItem('translateai_auth');
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        if (authData.authenticated && authData.expiresAt > Date.now()) {
+          isAuthenticated = true;
+          hideAuthModal();
+          return true;
+        }
+      } catch (error) {
+        console.error('Ошибка парсинга авторизации:', error);
+      }
+    }
+    
+    showAuthModal();
+    return false;
+  }
+
+  /**
+   * Показывает модальное окно авторизации
+   */
+  function showAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+      authModal.classList.remove('hidden');
+      resetAuthModal();
+    }
+  }
+
+  /**
+   * Скрывает модальное окно авторизации
+   */
+  function hideAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+      authModal.classList.add('hidden');
+      clearAuthCheckInterval();
+    }
+  }
+
+  /**
+   * Сбрасывает состояние модального окна авторизации
+   */
+  function resetAuthModal() {
+    // Скрываем все шаги
+    document.getElementById('authStep1').classList.remove('hidden');
+    document.getElementById('authStep2').classList.add('hidden');
+    document.getElementById('authStep3').classList.add('hidden');
+    document.getElementById('authStep4').classList.add('hidden');
+    document.getElementById('authError').classList.add('hidden');
+  }
+
+  /**
+   * Начинает процесс авторизации
+   */
+  async function startAuth() {
+    try {
+      showAuthStep(1);
+      
+      const response = await fetch('/api/auth?action=start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      currentSessionId = data.sessionId;
+
+      // Показываем код авторизации
+      document.getElementById('authCode').textContent = data.authCode;
+      document.getElementById('botUsername').textContent = '@' + data.botUsername;
+      document.getElementById('telegramBotLink').href = `https://t.me/${data.botUsername}`;
+      
+      showAuthStep(2);
+      
+      // Автоматически переходим к проверке статуса через 5 секунд
+      setTimeout(() => {
+        startAuthCheck();
+      }, 5000);
+
+    } catch (error) {
+      console.error('Ошибка начала авторизации:', error);
+      showAuthError('Не удалось начать процесс авторизации. Попробуйте позже.');
+    }
+  }
+
+  /**
+   * Начинает проверку статуса авторизации
+   */
+  function startAuthCheck() {
+    showAuthStep(3);
+    authCheckInterval = setInterval(checkAuthProgress, 3000);
+    checkAuthProgress(); // Первая проверка сразу
+  }
+
+  /**
+   * Проверяет прогресс авторизации
+   */
+  async function checkAuthProgress() {
+    if (!currentSessionId) return;
+
+    try {
+      const response = await fetch(`/api/auth?action=check&sessionId=${currentSessionId}`);
+      const data = await response.json();
+
+      const statusMessage = document.getElementById('authStatusMessage');
+      statusMessage.textContent = data.message;
+
+      if (data.status === 'approved') {
+        clearAuthCheckInterval();
+        
+        // Сохраняем авторизацию
+        const authData = {
+          authenticated: true,
+          expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 дней
+          userInfo: data.userInfo
+        };
+        localStorage.setItem('translateai_auth', JSON.stringify(authData));
+        
+        isAuthenticated = true;
+        showAuthStep(4);
+        
+      } else if (data.status === 'rejected') {
+        clearAuthCheckInterval();
+        showAuthError('Доступ отклонен администратором. Обратитесь к администратору для получения доступа.');
+      }
+
+    } catch (error) {
+      console.error('Ошибка проверки авторизации:', error);
+      document.getElementById('authStatusMessage').textContent = 'Ошибка проверки статуса...';
+    }
+  }
+
+  /**
+   * Показывает определенный шаг авторизации
+   */
+  function showAuthStep(step) {
+    for (let i = 1; i <= 4; i++) {
+      const stepElement = document.getElementById(`authStep${i}`);
+      if (stepElement) {
+        stepElement.classList.toggle('hidden', i !== step);
+      }
+    }
+    document.getElementById('authError').classList.add('hidden');
+  }
+
+  /**
+   * Показывает ошибку авторизации
+   */
+  function showAuthError(message) {
+    document.getElementById('authErrorMessage').textContent = message;
+    document.getElementById('authError').classList.remove('hidden');
+    
+    // Скрываем все шаги
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById(`authStep${i}`).classList.add('hidden');
+    }
+  }
+
+  /**
+   * Очищает интервал проверки авторизации
+   */
+  function clearAuthCheckInterval() {
+    if (authCheckInterval) {
+      clearInterval(authCheckInterval);
+      authCheckInterval = null;
+    }
+  }
+
+  /**
+   * Проверяет, авторизован ли пользователь перед переводом
+   */
+  function requireAuth() {
+    if (!isAuthenticated) {
+      showAuthModal();
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * App Initialization
    */
 
@@ -961,10 +1246,14 @@ document.addEventListener("DOMContentLoaded", () => {
   loadHistory();
   updateCharCount(); // Initialize character counter
   updateSwapButtonState(); // Initialize swap button state
+  
+  // Проверяем авторизацию
+  checkAuthStatus();
+  
   lucide.createIcons(); // Initialize Lucide icons
 
   // Initial auto-translate if there's existing text
-  if (elements.inputText.value.trim()) {
+  if (elements.inputText.value.trim() && isAuthenticated) {
     scheduleAutoTranslate();
   }
 
@@ -975,6 +1264,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Button event listeners
   elements.swapButton.addEventListener("click", swapLanguagesWithAnimation);
   elements.copyButton.addEventListener("click", copyToClipboard);
+
+  // Auth event listeners
+  document.getElementById('startAuthButton').addEventListener('click', startAuth);
+  document.getElementById('closeAuthButton').addEventListener('click', hideAuthModal);
+  document.getElementById('retryAuthButton').addEventListener('click', () => {
+    resetAuthModal();
+    startAuth();
+  });
   elements.historyButton.addEventListener("click", showHistoryPanel);
   elements.settingsButton.addEventListener("click", showSettingsPanel);
   elements.closeHistoryButton.addEventListener("click", hideHistoryPanel);

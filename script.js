@@ -97,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
     documentModeContent: document.getElementById("documentModeContent"),
     
     // Multi-language selection
-    addLanguageButton: document.getElementById("addLanguageButton"),
     selectedLanguages: document.getElementById("selectedLanguages"),
     
     // Document upload elements
@@ -325,6 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * Restores saved language selections or uses defaults
    */
   function populateLanguages() {
+    // Populate source language select
     elements.sourceLangSelect.innerHTML =
       '<option value="AUTO">Detect language</option>';
 
@@ -337,17 +337,15 @@ document.addEventListener("DOMContentLoaded", () => {
       elements.sourceLangSelect.add(new Option(name, code));
     });
 
-    elements.targetLangSelect.innerHTML = "";
+    // Initialize target language select with placeholder
+    elements.targetLangSelect.innerHTML = '<option value="">Выберите язык для добавления...</option>';
     sortedLanguages.forEach(([code, name]) => {
       elements.targetLangSelect.add(new Option(name, code));
     });
 
-    // Restore saved language selections or use defaults
+    // Restore saved source language selection
     const savedSourceLang = localStorage.getItem("deeplxSourceLang") || "AUTO";
-    const savedTargetLang = localStorage.getItem("deeplxTargetLang") || "EN";
-
     elements.sourceLangSelect.value = savedSourceLang;
-    elements.targetLangSelect.value = savedTargetLang;
   }
 
   // Load and save settings
@@ -631,6 +629,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Проверяем, что выбран хотя бы один целевой язык
+    if (selectedTargetLanguages.length === 0) {
+      showStatus("Выберите целевой язык для перевода.", "error");
+      return;
+    }
+
     // Prevent concurrent translations
     if (isTranslating) {
       showStatus("Перевод уже выполняется, пожалуйста, подождите...");
@@ -650,7 +654,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const customApiUrl = elements.apiUrlInput.value.trim();
 
       const sourceLang = elements.sourceLangSelect.value;
-      const targetLang = elements.targetLangSelect.value;
+      
+      // Для текстового режима используем первый выбранный язык или английский по умолчанию
+      const targetLang = selectedTargetLanguages.length > 0 ? selectedTargetLanguages[0] : 'EN';
 
       // Проверяем размер текста и разделяем на части если необходимо
       if (text.length <= CONFIG.CHUNK_SIZE) {
@@ -1301,13 +1307,20 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Добавляет язык к выбранным целевым языкам
    */
-  function addTargetLanguage() {
-    const selectedLang = elements.targetLangSelect.value;
+  function addTargetLanguage(langCode) {
+    if (!langCode) {
+      langCode = elements.targetLangSelect.value;
+    }
     
-    if (!selectedTargetLanguages.includes(selectedLang)) {
-      selectedTargetLanguages.push(selectedLang);
+    if (langCode && !selectedTargetLanguages.includes(langCode)) {
+      selectedTargetLanguages.push(langCode);
       updateSelectedLanguagesDisplay();
       saveSelectedLanguages();
+      
+      // Сбрасываем выбор в dropdown
+      elements.targetLangSelect.value = '';
+      
+      console.log(`➕ Добавлен язык: ${languages[langCode]} (${langCode})`);
     }
   }
 
@@ -1315,32 +1328,78 @@ document.addEventListener("DOMContentLoaded", () => {
    * Удаляет язык из выбранных
    */
   function removeTargetLanguage(langCode) {
-    selectedTargetLanguages = selectedTargetLanguages.filter(lang => lang !== langCode);
-    updateSelectedLanguagesDisplay();
-    saveSelectedLanguages();
+    const index = selectedTargetLanguages.indexOf(langCode);
+    if (index > -1) {
+      selectedTargetLanguages.splice(index, 1);
+      updateSelectedLanguagesDisplay();
+      saveSelectedLanguages();
+      
+      console.log(`➖ Удален язык: ${languages[langCode]} (${langCode})`);
+    }
   }
 
   /**
    * Обновляет отображение выбранных языков
    */
   function updateSelectedLanguagesDisplay() {
-    elements.selectedLanguages.innerHTML = '';
+    const container = elements.selectedLanguages;
+    const emptyMessage = document.getElementById('selectedLanguagesEmpty');
     
-    selectedTargetLanguages.forEach(langCode => {
-      const langName = languages[langCode] || langCode;
-      const tag = document.createElement('div');
-      tag.className = 'language-tag';
-      tag.innerHTML = `
-        <span>${langName}</span>
-        <button onclick="removeTargetLanguage('${langCode}')" type="button">
-          <i data-lucide="x" class="w-3 h-3"></i>
-        </button>
-      `;
-      elements.selectedLanguages.appendChild(tag);
-    });
+    // Очищаем контейнер
+    container.innerHTML = '';
+    
+    if (selectedTargetLanguages.length === 0) {
+      // Показываем сообщение о пустом состоянии
+      const emptyDiv = document.createElement('div');
+      emptyDiv.id = 'selectedLanguagesEmpty';
+      emptyDiv.className = 'text-gray-500 text-sm';
+      emptyDiv.textContent = 'Выберите языки из списка выше';
+      container.appendChild(emptyDiv);
+    } else {
+      // Показываем выбранные языки
+      selectedTargetLanguages.forEach(langCode => {
+        const langName = languages[langCode] || langCode;
+        const tag = document.createElement('div');
+        tag.className = 'language-tag';
+        tag.innerHTML = `
+          <span>${langName}</span>
+          <button onclick="removeTargetLanguage('${langCode}')" type="button" title="Удалить ${langName}">
+            <i data-lucide="x" class="w-3 h-3"></i>
+          </button>
+        `;
+        container.appendChild(tag);
+      });
+    }
     
     // Обновляем иконки Lucide
     lucide.createIcons();
+    
+    // Обновляем доступные опции в dropdown
+    updateTargetLanguageOptions();
+  }
+
+  /**
+   * Обновляет опции в выпадающем списке целевых языков
+   */
+  function updateTargetLanguageOptions() {
+    const select = elements.targetLangSelect;
+    
+    // Сохраняем первую опцию
+    const firstOption = select.querySelector('option[value=""]');
+    select.innerHTML = '';
+    select.appendChild(firstOption);
+    
+    // Добавляем только неиспользованные языки
+    const sortedLanguages = Object.entries(languages).sort(([, a], [, b]) =>
+      a.localeCompare(b)
+    );
+    
+    sortedLanguages.forEach(([code, name]) => {
+      if (!selectedTargetLanguages.includes(code)) {
+        const option = new Option(name, code);
+        select.appendChild(option);
+      }
+    });
   }
 
   /**
@@ -1731,19 +1790,68 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   async function downloadDocument(taskId, langCode) {
     try {
-      const response = await fetch(`/api/documents?action=download&taskId=${taskId}&langCode=${langCode}`);
-      const result = await response.json();
+      showStatus(`Подготовка загрузки ${languages[langCode]} версии...`, 'info');
       
-      if (result.success) {
-        // В реальном приложении здесь был бы реальный файл
-        showStatus(`Загрузка ${languages[langCode]} версии начата`, 'success');
-        console.log('Download URL:', result.downloadUrl);
-      } else {
-        throw new Error(result.message);
+      const response = await fetch(`/api/documents?action=download&taskId=${taskId}&langCode=${langCode}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
+        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
       }
+      
+      // Проверяем тип ответа
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        // Если JSON - значит ошибка
+        const result = await response.json();
+        throw new Error(result.message || result.error || 'Ошибка API');
+      } else {
+        // Если не JSON - значит файл для скачивания
+        const blob = await response.blob();
+        const filename = getFilenameFromResponse(response, taskId, langCode);
+        
+        // Создаем ссылку для скачивания
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        
+        // Добавляем в DOM и кликаем
+        document.body.appendChild(a);
+        a.click();
+        
+        // Очищаем ресурсы
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+        
+        showStatus(`✅ Файл ${filename} скачан успешно!`, 'success');
+      }
+      
     } catch (error) {
-      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
+      console.error('Ошибка скачивания:', error);
+      showStatus(`❌ Ошибка скачивания: ${error.message}`, 'error');
     }
+  }
+
+  /**
+   * Извлекает имя файла из ответа сервера
+   */
+  function getFilenameFromResponse(response, taskId, langCode) {
+    // Пытаемся получить имя файла из заголовка Content-Disposition
+    const disposition = response.headers.get('content-disposition');
+    if (disposition) {
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        return filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+    
+    // Fallback имя файла
+    return `translated_document_${langCode}_${taskId}.txt`;
   }
 
   /**
@@ -1796,7 +1904,11 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.documentModeTab.addEventListener('click', () => switchMode('document'));
 
   // Multi-language selection
-  elements.addLanguageButton.addEventListener('click', addTargetLanguage);
+  elements.targetLangSelect.addEventListener('change', (e) => {
+    if (e.target.value) {
+      addTargetLanguage(e.target.value);
+    }
+  });
 
   // File upload
   elements.selectFilesButton.addEventListener('click', () => {
@@ -1869,11 +1981,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Save source language selection
     localStorage.setItem("deeplxSourceLang", elements.sourceLangSelect.value);
   });
-  elements.targetLangSelect.addEventListener("change", () => {
-    scheduleAutoTranslate();
-    // Save target language selection
-    localStorage.setItem("deeplxTargetLang", elements.targetLangSelect.value);
-  });
+  // Target language changes now handled by multi-language selection
 
   // Panel management - close when clicking outside
   elements.historyPanel.addEventListener("click", (e) => {

@@ -430,17 +430,32 @@ body {
    Language Selection Tags
    ========================================================================== */
 
+/* Selected languages container */
+#selectedLanguages {
+  min-height: 40px;
+  transition: border-color 0.2s ease;
+}
+
+#selectedLanguages:hover {
+  border-color: #4b5563;
+}
+
+#selectedLanguages:not(:empty) #selectedLanguagesEmpty {
+  display: none;
+}
+
 /* Selected language tags */
 .language-tag {
   background-color: #3b82f6;
   color: white;
-  padding: 4px 8px;
-  border-radius: 16px;
+  padding: 6px 12px;
+  border-radius: 20px;
   font-size: 0.75rem;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .language-tag:hover {

@@ -191,19 +191,103 @@ async function handleDownload(req, res) {
 
   const result = task.results.find(r => r.langCode === langCode);
 
-  if (!result) {
+  if (!result || result.status !== 'completed') {
     return res.status(404).json({
-      error: 'Translation not found'
+      error: 'Translation not found or not completed'
     });
   }
 
-  // В реальном приложении здесь был бы возврат файла
-  // Пока возвращаем mock данные
-  return res.status(200).json({
-    success: true,
-    downloadUrl: `mock://download/${taskId}/${langCode}`,
-    message: 'Download ready'
-  });
+  try {
+    // Генерируем содержимое файла для скачивания
+    const fileContent = await generateDownloadContent(task, result);
+    const fileName = generateFileName(task.fileName, langCode);
+    
+    // Устанавливаем заголовки для скачивания файла
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    return res.status(200).send(fileContent);
+    
+  } catch (error) {
+    console.error('Ошибка генерации файла для скачивания:', error);
+    return res.status(500).json({
+      error: 'Download generation failed',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Генерирует содержимое файла для скачивания
+ */
+async function generateDownloadContent(task, result) {
+  const originalFileName = task.fileName || 'document.txt';
+  const langName = getLanguageName(result.langCode);
+  
+  // Получаем переведенный текст из результата или генерируем заново
+  let translatedContent = result.translatedText;
+  
+  if (!translatedContent) {
+    // Если текст не сохранен, генерируем демонстрационный контент
+    translatedContent = await generateDemoTranslatedContent(result.langCode);
+  }
+  
+  return `${translatedContent}
+
+---
+Информация о переводе:
+Исходный файл: ${originalFileName}
+Язык перевода: ${langName} (${result.langCode})
+Дата перевода: ${new Date().toLocaleString('ru-RU')}
+ID задачи: ${task.id}
+---`;
+}
+
+/**
+ * Генерирует демонстрационный переведенный контент
+ */
+async function generateDemoTranslatedContent(langCode) {
+  const demoTexts = {
+    'CS': 'Toto je příklad přeloženého textu pro demonstraci funkčnosti systému překladu dokumentů. V reálné aplikaci by zde byl úplný přeložený obsah dokumentu.',
+    'NL': 'Dit is een voorbeeld van vertaalde tekst ter demonstratie van de functionaliteit van het documentvertaalsysteem. In een echte applicatie zou hier de volledige vertaalde inhoud van het document staan.',
+    'DE': 'Dies ist ein Beispiel für übersetzten Text zur Demonstration der Funktionalität des Dokumentenübersetzungssystems. In einer echten Anwendung wäre hier der vollständige übersetzte Inhalt des Dokuments.',
+    'FR': 'Ceci est un exemple de texte traduit pour démontrer la fonctionnalité du système de traduction de documents. Dans une vraie application, le contenu traduit complet du document serait ici.',
+    'ES': 'Este es un ejemplo de texto traducido para demostrar la funcionalidad del sistema de traducción de documentos. En una aplicación real, aquí estaría el contenido traducido completo del documento.',
+    'EN': 'This is an example of translated text to demonstrate the functionality of the document translation system. In a real application, the complete translated content of the document would be here.',
+    'RU': 'Это пример переведенного текста для демонстрации функциональности системы перевода документов. В реальном приложении здесь был бы полный переведенный контент документа.'
+  };
+  
+  return demoTexts[langCode] || demoTexts['EN'];
+}
+
+/**
+ * Генерирует имя файла для скачивания
+ */
+function generateFileName(originalFileName, langCode) {
+  const nameWithoutExt = originalFileName.replace(/\.[^/.]+$/, "");
+  const extension = originalFileName.includes('.') ? 
+    originalFileName.substring(originalFileName.lastIndexOf('.')) : '.txt';
+  
+  return `${nameWithoutExt}_${langCode}${extension}`;
+}
+
+/**
+ * Возвращает название языка по коду
+ */
+function getLanguageName(langCode) {
+  const languageNames = {
+    'AR': 'Arabic', 'BG': 'Bulgarian', 'CS': 'Czech', 'DA': 'Danish',
+    'DE': 'German', 'EL': 'Greek', 'EN': 'English', 'ES': 'Spanish',
+    'ET': 'Estonian', 'FI': 'Finnish', 'FR': 'French', 'HU': 'Hungarian',
+    'ID': 'Indonesian', 'IT': 'Italian', 'JA': 'Japanese', 'KO': 'Korean',
+    'LT': 'Lithuanian', 'LV': 'Latvian', 'NB': 'Norwegian', 'NL': 'Dutch',
+    'PL': 'Polish', 'PT': 'Portuguese', 'RO': 'Romanian', 'RU': 'Russian',
+    'SK': 'Slovak', 'SL': 'Slovenian', 'SV': 'Swedish', 'TR': 'Turkish',
+    'UK': 'Ukrainian', 'ZH': 'Chinese'
+  };
+  
+  return languageNames[langCode] || langCode;
 }
 
 /**
@@ -254,6 +338,7 @@ async function processDocumentAsync(taskId) {
           langCode,
           status: 'completed',
           documentId,
+          translatedText: translatedText,
           downloadUrl: `mock://download/${taskId}/${langCode}`
         });
 
@@ -303,41 +388,37 @@ async function extractTextFromDocument(fileId) {
  * Переводит текст с использованием существующего API
  */
 async function translateText(text, sourceLang, targetLang) {
-  // Импортируем существующую функцию перевода
-  const translateModule = await import('./translate.js');
-  
-  // Создаем mock request для API перевода
-  const mockReq = {
-    method: 'POST',
-    body: JSON.stringify({
-      text,
-      source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
-      target_lang: targetLang
-    })
-  };
+  try {
+    // Используем прямой HTTP запрос к API перевода
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        text,
+        source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
+        target_lang: targetLang
+      })
+    });
 
-  // Создаем mock response
-  let result;
-  const mockRes = {
-    status: (code) => ({
-      json: (data) => {
-        result = data;
-        return { status: code };
-      }
-    }),
-    setHeader: () => {},
-    json: (data) => {
-      result = data;
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Неизвестная ошибка');
+      throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
     }
-  };
 
-  // Вызываем API перевода
-  await translateModule.default(mockReq, mockRes);
-  
-  if (result.code === 200) {
-    return result.data;
-  } else {
-    throw new Error(result.message || 'Translation failed');
+    const result = await response.json();
+
+    if (result.code === 200 && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || result.error || "Неизвестная ошибка API");
+    }
+
+  } catch (error) {
+    console.error(`❌ Ошибка перевода ${sourceLang} → ${targetLang}:`, error.message);
+    throw error;
   }
 }
 

@@ -134,21 +134,22 @@
               class="mb-1 text-sm font-medium text-gray-400"
               >Target Languages</label
             >
-            <div class="relative">
+            <div class="space-y-2">
+              <!-- Language selection dropdown -->
               <select
                 id="targetLang"
                 class="lang-select w-full p-2 rounded-md"
-              ></select>
-              <button
-                id="addLanguageButton"
-                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                title="Add more target languages"
               >
-                <i data-lucide="plus" class="w-4 h-4"></i>
-              </button>
+                <option value="">Выберите язык для добавления...</option>
+              </select>
+              
+              <!-- Selected languages -->
+              <div id="selectedLanguages" class="flex flex-wrap gap-2 min-h-[32px] p-2 border border-gray-600 rounded-md bg-gray-800">
+                <div id="selectedLanguagesEmpty" class="text-gray-500 text-sm">
+                  Выберите языки из списка выше
+                </div>
+              </div>
             </div>
-            <!-- Selected languages -->
-            <div id="selectedLanguages" class="mt-2 flex flex-wrap gap-2"></div>
           </div>
         </div>
 

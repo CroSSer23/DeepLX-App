@@ -810,6 +810,9 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function scheduleAutoTranslate() {
     if (!elements.autoTranslateToggle.checked) return;
+    
+    // Проверяем авторизацию перед автопереводом
+    if (!isAuthenticated) return;
 
     clearTimeout(translateTimeout);
     const delay = parseInt(elements.delayInput.value) || CONFIG.DEFAULT_DELAY;
@@ -1170,7 +1173,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Сохраняем авторизацию
         const authData = {
           authenticated: true,
-          expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 дней
+          expiresAt: Date.now() + (3 * 24 * 60 * 60 * 1000), // 3 дня
           userInfo: data.userInfo
         };
         localStorage.setItem('translateai_auth', JSON.stringify(authData));

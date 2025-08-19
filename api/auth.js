@@ -84,7 +84,7 @@ async function handleAuthStart(req, res) {
   return res.status(200).json({
     sessionId,
     authCode,
-    botUsername: 'your_bot_username', // Замените на имя вашего бота
+    botUsername: 'crosserdeepl_bot', // Замените на имя вашего бота
     message: 'Отправьте код боту для авторизации'
   });
 }

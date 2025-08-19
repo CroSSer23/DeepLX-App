@@ -93,6 +93,26 @@
       </header>
 
       <main class="shadow-2xl rounded-xl p-6 animate-slide-up" style="background-color: #323232;">
+        <!-- Translation Mode Tabs -->
+        <div class="mb-6">
+          <div class="flex border-b border-gray-600">
+            <button
+              id="textModeTab"
+              class="tab-button active px-4 py-2 font-medium text-sm transition-colors relative"
+            >
+              <i data-lucide="edit-3" class="w-4 h-4 inline mr-2"></i>
+              Текстовый перевод
+            </button>
+            <button
+              id="documentModeTab"
+              class="tab-button px-4 py-2 font-medium text-sm transition-colors relative"
+            >
+              <i data-lucide="file-text" class="w-4 h-4 inline mr-2"></i>
+              Перевод документов
+            </button>
+          </div>
+        </div>
+
         <!-- Language selection and operation area -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center mb-4">
           <!-- Source language selection -->
@@ -112,12 +132,23 @@
             <label
               for="targetLang"
               class="mb-1 text-sm font-medium text-gray-400"
-              >Target Language</label
+              >Target Languages</label
             >
-            <select
-              id="targetLang"
-              class="lang-select w-full p-2 rounded-md"
-            ></select>
+            <div class="relative">
+              <select
+                id="targetLang"
+                class="lang-select w-full p-2 rounded-md"
+              ></select>
+              <button
+                id="addLanguageButton"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                title="Add more target languages"
+              >
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <!-- Selected languages -->
+            <div id="selectedLanguages" class="mt-2 flex flex-wrap gap-2"></div>
           </div>
         </div>
 

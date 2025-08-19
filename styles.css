@@ -408,6 +408,262 @@ body {
 }
 
 /* ==========================================================================
+   Tab System
+   ========================================================================== */
+
+/* Tab buttons */
+.tab-button {
+  color: #9ca3af;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button.active {
+  color: #ffffff;
+  border-bottom-color: #3b82f6;
+}
+
+.tab-button:hover:not(.active) {
+  color: #d1d5db;
+}
+
+/* ==========================================================================
+   Language Selection Tags
+   ========================================================================== */
+
+/* Selected language tags */
+.language-tag {
+  background-color: #3b82f6;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.language-tag:hover {
+  background-color: #2563eb;
+  transform: scale(1.05);
+}
+
+.language-tag button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.language-tag button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   Document Queue System
+   ========================================================================== */
+
+/* Queue item styling */
+.queue-item,
+.completed-item {
+  background-color: #404040;
+  border: 1px solid #505050;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.queue-item:hover,
+.completed-item:hover {
+  background-color: #505050;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Queue item content */
+.queue-item-header {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.queue-item-title {
+  font-medium: true;
+  color: #ffffff;
+  font-size: 0.875rem;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.queue-item-size {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.queue-item-progress {
+  width: 100%;
+  height: 4px;
+  background-color: #374151;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.queue-item-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  transition: width 0.3s ease;
+}
+
+.queue-item-status {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Status colors */
+.status-pending {
+  color: #fbbf24;
+}
+
+.status-processing {
+  color: #3b82f6;
+}
+
+.status-completed {
+  color: #10b981;
+}
+
+.status-error {
+  color: #ef4444;
+}
+
+/* File upload drag and drop */
+.file-drop-active {
+  border-color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.file-drop-active .text-gray-400 {
+  color: #3b82f6 !important;
+}
+
+/* Document result cards */
+.document-result {
+  background-color: #404040;
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.document-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.download-button {
+  background-color: #10b981;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.download-button:hover {
+  background-color: #059669;
+}
+
+/* Batch processing indicators */
+.batch-processing {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8, #3b82f6);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Progress circle for batch processing */
+.batch-progress-circle {
+  stroke-dasharray: 251.2;
+  stroke-dashoffset: 251.2;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+/* ==========================================================================
+   Empty States
+   ========================================================================== */
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 1.125rem;
+  margin-bottom: 8px;
+  color: #9ca3af;
+}
+
+.empty-state p {
+  font-size: 0.875rem;
+}
+
+/* ==========================================================================
+   Scrollbar Customization
+   ========================================================================== */
+
+/* Custom scrollbars for queue areas */
+#uploadQueue::-webkit-scrollbar,
+#completedDocuments::-webkit-scrollbar {
+  width: 6px;
+}
+
+#uploadQueue::-webkit-scrollbar-track,
+#completedDocuments::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 3px;
+}
+
+#uploadQueue::-webkit-scrollbar-thumb,
+#completedDocuments::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 3px;
+}
+
+#uploadQueue::-webkit-scrollbar-thumb:hover,
+#completedDocuments::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ==========================================================================
    Responsive Design
    ========================================================================== */
 
@@ -420,5 +676,22 @@ body {
   .action-btn:hover {
     transform: none;
     box-shadow: none;
+  }
+
+  /* Stack queue sections on mobile */
+  .grid-cols-1.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Adjust tab buttons for mobile */
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+  }
+
+  /* Smaller language tags on mobile */
+  .language-tag {
+    font-size: 0.6875rem;
+    padding: 3px 6px;
   }
 }

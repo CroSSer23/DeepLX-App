@@ -152,43 +152,133 @@
           </div>
         </div>
 
-        <!-- Text input/output area -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Input area -->
-          <div class="relative">
-            <label class="block text-sm font-medium text-gray-400 mb-2">
-              <i data-lucide="edit-3" class="w-4 h-4 inline mr-1"></i>
-              Input Text
-            </label>
-            <textarea
-              id="inputText"
-              class="translate-textarea w-full p-3 rounded-lg"
-              placeholder="Введите текст для перевода... (До 1 млн символов)"
-              maxlength="1000000"
-            ></textarea>
-            <div class="absolute bottom-2 right-2 text-xs text-gray-500">
-              <span id="charCount">0</span>/1,000,000
+        <!-- Text Mode Content -->
+        <div id="textModeContent">
+          <!-- Text input/output area -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Input area -->
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-400 mb-2">
+                <i data-lucide="edit-3" class="w-4 h-4 inline mr-1"></i>
+                Input Text
+              </label>
+              <textarea
+                id="inputText"
+                class="translate-textarea w-full p-3 rounded-lg"
+                placeholder="Введите текст для перевода... (До 1 млн символов)"
+                maxlength="1000000"
+              ></textarea>
+              <div class="absolute bottom-2 right-2 text-xs text-gray-500">
+                <span id="charCount">0</span>/1,000,000
+              </div>
+            </div>
+            <!-- Output area -->
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-400 mb-2">
+                <i data-lucide="languages" class="w-4 h-4 inline mr-1"></i>
+                Translation Result
+              </label>
+              <textarea
+                id="outputText"
+                class="translate-textarea w-full p-3 rounded-lg"
+                placeholder="Translation result will appear here automatically..."
+                readonly
+              ></textarea>
+              <button
+                id="copyButton"
+                title="Copy to clipboard"
+                class="action-btn absolute top-8 right-2 p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white"
+              >
+                <i data-lucide="copy" class="w-5 h-5"></i>
+              </button>
             </div>
           </div>
-          <!-- Output area -->
-          <div class="relative">
-            <label class="block text-sm font-medium text-gray-400 mb-2">
-              <i data-lucide="languages" class="w-4 h-4 inline mr-1"></i>
-              Translation Result
-            </label>
-            <textarea
-              id="outputText"
-              class="translate-textarea w-full p-3 rounded-lg"
-              placeholder="Translation result will appear here automatically..."
-              readonly
-            ></textarea>
-            <button
-              id="copyButton"
-              title="Copy to clipboard"
-              class="action-btn absolute top-8 right-2 p-2 rounded-full bg-gray-700 text-gray-400 hover:text-white"
-            >
-              <i data-lucide="copy" class="w-5 h-5"></i>
-            </button>
+        </div>
+
+        <!-- Document Mode Content -->
+        <div id="documentModeContent" class="hidden">
+          <!-- File Upload Area -->
+          <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center mb-6">
+            <div class="space-y-4">
+              <div class="text-gray-400">
+                <i data-lucide="upload" class="w-12 h-12 mx-auto mb-4"></i>
+                <h3 class="text-lg font-medium mb-2">Загрузите документы для перевода</h3>
+                <p class="text-sm">Поддерживаются: PDF, DOC, DOCX, TXT, RTF (до 10 МБ)</p>
+              </div>
+              <div>
+                <input
+                  type="file"
+                  id="fileInput"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt,.rtf"
+                  class="hidden"
+                />
+                <button
+                  id="selectFilesButton"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2"
+                >
+                  <i data-lucide="folder-open" class="w-5 h-5"></i>
+                  Выбрать файлы
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Management -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Upload Queue -->
+            <div>
+              <h3 class="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <i data-lucide="clock" class="w-5 h-5"></i>
+                Очередь на обработку
+                <span id="queueCount" class="bg-blue-600 text-white px-2 py-1 rounded-full text-xs">0</span>
+              </h3>
+              <div id="uploadQueue" class="space-y-3 max-h-64 overflow-y-auto">
+                <!-- Queue items will be inserted here -->
+              </div>
+            </div>
+
+            <!-- Completed Documents -->
+            <div>
+              <h3 class="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <i data-lucide="check-circle" class="w-5 h-5"></i>
+                Готовые документы
+                <span id="completedCount" class="bg-green-600 text-white px-2 py-1 rounded-full text-xs">0</span>
+              </h3>
+              <div id="completedDocuments" class="space-y-3 max-h-64 overflow-y-auto">
+                <!-- Completed items will be inserted here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Batch Processing Controls -->
+          <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-700 rounded-lg">
+            <div class="flex items-center gap-4">
+              <button
+                id="startBatchButton"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-2"
+              >
+                <i data-lucide="play" class="w-4 h-4"></i>
+                Начать обработку
+              </button>
+              <button
+                id="pauseBatchButton"
+                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-2 hidden"
+              >
+                <i data-lucide="pause" class="w-4 h-4"></i>
+                Приостановить
+              </button>
+              <button
+                id="clearQueueButton"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-2"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Очистить очередь
+              </button>
+            </div>
+            <div class="text-sm text-gray-400">
+              <span id="batchStatus">Готов к обработке</span>
+            </div>
           </div>
         </div>
 

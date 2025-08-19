@@ -89,6 +89,32 @@ document.addEventListener("DOMContentLoaded", () => {
     delayInput: document.getElementById("delayInput"),
     autoTranslateToggle: document.getElementById("autoTranslateToggle"),
     charCount: document.getElementById("charCount"),
+    
+    // Mode switching elements
+    textModeTab: document.getElementById("textModeTab"),
+    documentModeTab: document.getElementById("documentModeTab"),
+    textModeContent: document.getElementById("textModeContent"),
+    documentModeContent: document.getElementById("documentModeContent"),
+    
+    // Multi-language selection
+    addLanguageButton: document.getElementById("addLanguageButton"),
+    selectedLanguages: document.getElementById("selectedLanguages"),
+    
+    // Document upload elements
+    fileInput: document.getElementById("fileInput"),
+    selectFilesButton: document.getElementById("selectFilesButton"),
+    
+    // Queue management
+    uploadQueue: document.getElementById("uploadQueue"),
+    completedDocuments: document.getElementById("completedDocuments"),
+    queueCount: document.getElementById("queueCount"),
+    completedCount: document.getElementById("completedCount"),
+    
+    // Batch processing controls
+    startBatchButton: document.getElementById("startBatchButton"),
+    pauseBatchButton: document.getElementById("pauseBatchButton"),
+    clearQueueButton: document.getElementById("clearQueueButton"),
+    batchStatus: document.getElementById("batchStatus"),
   };
 
   // App state
@@ -99,6 +125,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let isAuthenticated = false;
   let currentSessionId = null;
   let authCheckInterval = null;
+  
+  // Document processing state
+  let currentMode = 'text'; // 'text' or 'document'
+  let selectedTargetLanguages = ['EN']; // Массив выбранных целевых языков
+  let documentQueue = []; // Очередь документов для обработки
+  let completedDocuments = []; // Завершенные документы
+  let isProcessingBatch = false; // Статус пакетной обработки
+  let batchProcessingTasks = new Map(); // Активные задачи обработки
 
   // Function to detect Arabic text
   /**
@@ -1240,6 +1274,496 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
+   * Mode Management Functions
+   */
+
+  /**
+   * Переключает между режимами текста и документов
+   */
+  function switchMode(mode) {
+    currentMode = mode;
+    
+    // Обновляем активные табы
+    elements.textModeTab.classList.toggle('active', mode === 'text');
+    elements.documentModeTab.classList.toggle('active', mode === 'document');
+    
+    // Показываем/скрываем соответствующий контент
+    elements.textModeContent.classList.toggle('hidden', mode !== 'text');
+    elements.documentModeContent.classList.toggle('hidden', mode !== 'document');
+    
+    console.log(`🔄 Переключен режим: ${mode}`);
+  }
+
+  /**
+   * Multi-Language Selection Functions
+   */
+
+  /**
+   * Добавляет язык к выбранным целевым языкам
+   */
+  function addTargetLanguage() {
+    const selectedLang = elements.targetLangSelect.value;
+    
+    if (!selectedTargetLanguages.includes(selectedLang)) {
+      selectedTargetLanguages.push(selectedLang);
+      updateSelectedLanguagesDisplay();
+      saveSelectedLanguages();
+    }
+  }
+
+  /**
+   * Удаляет язык из выбранных
+   */
+  function removeTargetLanguage(langCode) {
+    selectedTargetLanguages = selectedTargetLanguages.filter(lang => lang !== langCode);
+    updateSelectedLanguagesDisplay();
+    saveSelectedLanguages();
+  }
+
+  /**
+   * Обновляет отображение выбранных языков
+   */
+  function updateSelectedLanguagesDisplay() {
+    elements.selectedLanguages.innerHTML = '';
+    
+    selectedTargetLanguages.forEach(langCode => {
+      const langName = languages[langCode] || langCode;
+      const tag = document.createElement('div');
+      tag.className = 'language-tag';
+      tag.innerHTML = `
+        <span>${langName}</span>
+        <button onclick="removeTargetLanguage('${langCode}')" type="button">
+          <i data-lucide="x" class="w-3 h-3"></i>
+        </button>
+      `;
+      elements.selectedLanguages.appendChild(tag);
+    });
+    
+    // Обновляем иконки Lucide
+    lucide.createIcons();
+  }
+
+  /**
+   * Сохраняет выбранные языки в localStorage
+   */
+  function saveSelectedLanguages() {
+    localStorage.setItem('selectedTargetLanguages', JSON.stringify(selectedTargetLanguages));
+  }
+
+  /**
+   * Загружает выбранные языки из localStorage
+   */
+  function loadSelectedLanguages() {
+    const saved = localStorage.getItem('selectedTargetLanguages');
+    if (saved) {
+      try {
+        selectedTargetLanguages = JSON.parse(saved);
+      } catch (error) {
+        console.error('Ошибка загрузки сохраненных языков:', error);
+        selectedTargetLanguages = ['EN'];
+      }
+    }
+    updateSelectedLanguagesDisplay();
+  }
+
+  /**
+   * Document Processing Functions
+   */
+
+  /**
+   * Обрабатывает выбор файлов
+   */
+  function handleFileSelection(files) {
+    for (const file of files) {
+      if (validateFile(file)) {
+        addFileToQueue(file);
+      }
+    }
+    updateQueueDisplay();
+  }
+
+  /**
+   * Проверяет валидность файла
+   */
+  function validateFile(file) {
+    // Проверяем размер
+    if (file.size > 10 * 1024 * 1024) { // 10 МБ
+      showStatus(`Файл ${file.name} слишком большой (максимум 10 МБ)`, 'error');
+      return false;
+    }
+    
+    // Проверяем тип
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.rtf'];
+    const extension = '.' + file.name.split('.').pop().toLowerCase();
+    
+    if (!allowedTypes.includes(extension)) {
+      showStatus(`Неподдерживаемый тип файла: ${file.name}`, 'error');
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Добавляет файл в очередь обработки
+   */
+  function addFileToQueue(file) {
+    const queueItem = {
+      id: 'queue_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
+      file: file,
+      fileName: file.name,
+      fileSize: file.size,
+      status: 'pending',
+      progress: 0,
+      targetLangs: [...selectedTargetLanguages],
+      addedAt: Date.now()
+    };
+    
+    documentQueue.push(queueItem);
+    console.log(`📄 Добавлен файл в очередь: ${file.name}`);
+  }
+
+  /**
+   * Обновляет отображение очереди
+   */
+  function updateQueueDisplay() {
+    elements.queueCount.textContent = documentQueue.length;
+    elements.uploadQueue.innerHTML = '';
+    
+    if (documentQueue.length === 0) {
+      elements.uploadQueue.innerHTML = `
+        <div class="empty-state">
+          <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+          <h3>Очередь пуста</h3>
+          <p>Загрузите документы для начала работы</p>
+        </div>
+      `;
+    } else {
+      documentQueue.forEach(item => {
+        const queueElement = createQueueItemElement(item);
+        elements.uploadQueue.appendChild(queueElement);
+      });
+    }
+    
+    // Обновляем иконки
+    lucide.createIcons();
+  }
+
+  /**
+   * Создает элемент очереди
+   */
+  function createQueueItemElement(item) {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    div.setAttribute('data-queue-id', item.id);
+    
+    const statusClass = `status-${item.status}`;
+    const progressWidth = item.progress || 0;
+    
+    div.innerHTML = `
+      <div class="queue-item-header">
+        <div class="queue-item-title">${item.fileName}</div>
+        <div class="queue-item-size">${formatFileSize(item.fileSize)}</div>
+      </div>
+      <div class="queue-item-progress">
+        <div class="queue-item-progress-bar" style="width: ${progressWidth}%"></div>
+      </div>
+      <div class="queue-item-status">
+        <span class="${statusClass}">${getStatusText(item.status)}</span>
+        <span>${item.targetLangs.length} языков</span>
+      </div>
+    `;
+    
+    return div;
+  }
+
+  /**
+   * Обновляет отображение завершенных документов
+   */
+  function updateCompletedDisplay() {
+    elements.completedCount.textContent = completedDocuments.length;
+    elements.completedDocuments.innerHTML = '';
+    
+    if (completedDocuments.length === 0) {
+      elements.completedDocuments.innerHTML = `
+        <div class="empty-state">
+          <i data-lucide="check-circle" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+          <h3>Нет готовых документов</h3>
+          <p>Обработанные документы появятся здесь</p>
+        </div>
+      `;
+    } else {
+      completedDocuments.forEach(item => {
+        const completedElement = createCompletedItemElement(item);
+        elements.completedDocuments.appendChild(completedElement);
+      });
+    }
+    
+    lucide.createIcons();
+  }
+
+  /**
+   * Создает элемент завершенного документа
+   */
+  function createCompletedItemElement(item) {
+    const div = document.createElement('div');
+    div.className = 'completed-item';
+    
+    div.innerHTML = `
+      <div class="document-result-header">
+        <div class="queue-item-title">${item.fileName}</div>
+        <div class="text-green-400 text-sm">${item.results.length} переводов</div>
+      </div>
+      <div class="space-y-2">
+        ${item.results.map(result => `
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-300">${languages[result.langCode]}</span>
+            <button 
+              class="download-button" 
+              onclick="downloadDocument('${item.taskId}', '${result.langCode}')"
+            >
+              <i data-lucide="download" class="w-3 h-3 mr-1"></i>
+              Скачать
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    return div;
+  }
+
+  /**
+   * Batch Processing Functions
+   */
+
+  /**
+   * Начинает пакетную обработку
+   */
+  async function startBatchProcessing() {
+    if (documentQueue.length === 0) {
+      showStatus('Очередь пуста', 'error');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      showStatus('Необходима авторизация', 'error');
+      return;
+    }
+    
+    isProcessingBatch = true;
+    updateBatchControls();
+    
+    console.log(`🚀 Начинаем пакетную обработку: ${documentQueue.length} документов`);
+    
+    for (const queueItem of [...documentQueue]) {
+      if (!isProcessingBatch) break;
+      
+      try {
+        await processDocument(queueItem);
+      } catch (error) {
+        console.error(`Ошибка обработки ${queueItem.fileName}:`, error);
+        queueItem.status = 'error';
+        queueItem.error = error.message;
+      }
+      
+      updateQueueDisplay();
+      
+      // Небольшая пауза между документами
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    isProcessingBatch = false;
+    updateBatchControls();
+    showStatus('Пакетная обработка завершена', 'success');
+  }
+
+  /**
+   * Обрабатывает отдельный документ
+   */
+  async function processDocument(queueItem) {
+    queueItem.status = 'processing';
+    queueItem.progress = 0;
+    
+    try {
+      console.log(`📄 Обрабатываем: ${queueItem.fileName}`);
+      
+      // Отправляем документ на сервер
+      const taskId = await uploadAndProcessDocument(queueItem);
+      queueItem.taskId = taskId;
+      queueItem.progress = 10;
+      
+      // Отслеживаем прогресс
+      await trackDocumentProgress(queueItem);
+      
+      // Перемещаем в завершенные
+      completedDocuments.push(queueItem);
+      documentQueue.splice(documentQueue.indexOf(queueItem), 1);
+      
+      updateCompletedDisplay();
+      
+    } catch (error) {
+      queueItem.status = 'error';
+      queueItem.error = error.message;
+      throw error;
+    }
+  }
+
+  /**
+   * Отправляет документ на обработку
+   */
+  async function uploadAndProcessDocument(queueItem) {
+    // В реальном приложении здесь была бы загрузка файла
+    // Пока используем mock данные
+    
+    const response = await fetch('/api/documents?action=process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileId: queueItem.id,
+        fileName: queueItem.fileName,
+        fileSize: queueItem.fileSize,
+        sourceLang: elements.sourceLangSelect.value,
+        targetLangs: queueItem.targetLangs
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Ошибка обработки документа');
+    }
+    
+    return result.taskId;
+  }
+
+  /**
+   * Отслеживает прогресс обработки документа
+   */
+  async function trackDocumentProgress(queueItem) {
+    const checkInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/documents?action=status&taskId=${queueItem.taskId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          const task = result.task;
+          queueItem.progress = task.progress;
+          queueItem.status = task.status;
+          
+          if (task.status === 'completed') {
+            queueItem.results = task.results;
+            clearInterval(checkInterval);
+          } else if (task.status === 'error') {
+            queueItem.error = task.error;
+            clearInterval(checkInterval);
+            throw new Error(task.error || 'Ошибка обработки');
+          }
+          
+          updateQueueDisplay();
+        }
+      } catch (error) {
+        clearInterval(checkInterval);
+        throw error;
+      }
+    }, 2000);
+    
+    // Ожидаем завершения обработки
+    return new Promise((resolve, reject) => {
+      const originalInterval = setInterval(() => {
+        if (queueItem.status === 'completed') {
+          clearInterval(originalInterval);
+          resolve();
+        } else if (queueItem.status === 'error') {
+          clearInterval(originalInterval);
+          reject(new Error(queueItem.error));
+        }
+      }, 100);
+    });
+  }
+
+  /**
+   * Обновляет состояние элементов управления пакетной обработкой
+   */
+  function updateBatchControls() {
+    elements.startBatchButton.classList.toggle('hidden', isProcessingBatch);
+    elements.pauseBatchButton.classList.toggle('hidden', !isProcessingBatch);
+    
+    if (isProcessingBatch) {
+      elements.batchStatus.textContent = 'Обработка документов...';
+      elements.batchStatus.className = 'text-sm text-blue-400 batch-processing';
+    } else {
+      elements.batchStatus.textContent = 'Готов к обработке';
+      elements.batchStatus.className = 'text-sm text-gray-400';
+    }
+  }
+
+  /**
+   * Utility Functions for Documents
+   */
+
+  /**
+   * Форматирует размер файла
+   */
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Б';
+    const k = 1024;
+    const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Возвращает текст статуса
+   */
+  function getStatusText(status) {
+    const statusTexts = {
+      pending: 'В очереди',
+      processing: 'Обрабатывается',
+      completed: 'Готово',
+      error: 'Ошибка'
+    };
+    return statusTexts[status] || status;
+  }
+
+  /**
+   * Скачивает переведенный документ
+   */
+  async function downloadDocument(taskId, langCode) {
+    try {
+      const response = await fetch(`/api/documents?action=download&taskId=${taskId}&langCode=${langCode}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // В реальном приложении здесь был бы реальный файл
+        showStatus(`Загрузка ${languages[langCode]} версии начата`, 'success');
+        console.log('Download URL:', result.downloadUrl);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Очищает очередь документов
+   */
+  function clearDocumentQueue() {
+    if (documentQueue.length === 0) return;
+    
+    if (confirm('Вы уверены, что хотите очистить очередь?')) {
+      documentQueue.length = 0;
+      updateQueueDisplay();
+      showStatus('Очередь очищена', 'success');
+    }
+  }
+
+  // Делаем функции глобальными для onclick событий
+  window.removeTargetLanguage = removeTargetLanguage;
+  window.downloadDocument = downloadDocument;
+
+  /**
    * App Initialization
    */
 
@@ -1247,8 +1771,11 @@ document.addEventListener("DOMContentLoaded", () => {
   populateLanguages();
   setupSettings();
   loadHistory();
+  loadSelectedLanguages(); // Load saved target languages
   updateCharCount(); // Initialize character counter
   updateSwapButtonState(); // Initialize swap button state
+  updateQueueDisplay(); // Initialize queue display
+  updateCompletedDisplay(); // Initialize completed display
   
   // Проверяем авторизацию
   checkAuthStatus();
@@ -1263,6 +1790,56 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Event Listeners Setup
    */
+
+  // Mode switching
+  elements.textModeTab.addEventListener('click', () => switchMode('text'));
+  elements.documentModeTab.addEventListener('click', () => switchMode('document'));
+
+  // Multi-language selection
+  elements.addLanguageButton.addEventListener('click', addTargetLanguage);
+
+  // File upload
+  elements.selectFilesButton.addEventListener('click', () => {
+    elements.fileInput.click();
+  });
+
+  elements.fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFileSelection(e.target.files);
+      e.target.value = ''; // Reset input
+    }
+  });
+
+  // Drag and drop for file upload
+  const uploadArea = elements.documentModeContent.querySelector('.border-dashed');
+  
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('file-drop-active');
+  });
+
+  uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('file-drop-active');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('file-drop-active');
+    
+    if (e.dataTransfer.files.length > 0) {
+      handleFileSelection(e.dataTransfer.files);
+    }
+  });
+
+  // Batch processing controls
+  elements.startBatchButton.addEventListener('click', startBatchProcessing);
+  elements.pauseBatchButton.addEventListener('click', () => {
+    isProcessingBatch = false;
+    updateBatchControls();
+    showStatus('Обработка приостановлена', 'info');
+  });
+  elements.clearQueueButton.addEventListener('click', clearDocumentQueue);
 
   // Button event listeners
   elements.swapButton.addEventListener("click", swapLanguagesWithAnimation);

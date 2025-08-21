@@ -355,11 +355,13 @@ async function processDocumentAsync(taskId) {
       
       try {
         // Вызываем API перевода
+        console.log(`📝 Переводим ${extractedText.length} символов на ${langCode}`);
         const translatedText = await translateText(
           extractedText, 
           task.sourceLang, 
           langCode
         );
+        console.log(`📄 Получен перевод: ${translatedText.length} символов`);
 
         // Создаем переведенный документ
         const documentId = await createTranslatedDocument(
@@ -445,51 +447,46 @@ async function extractTextFromDocument(fileId) {
 }
 
 /**
- * Переводит текст с использованием встроенной логики API
+ * Переводит текст используя встроенную логику DeepL API
  */
 async function translateText(text, sourceLang, targetLang) {
   try {
-    console.log(`🔄 Начинаем внутренний перевод ${sourceLang} → ${targetLang}`);
+    console.log(`🔄 Начинаем перевод через DeepL API ${sourceLang} → ${targetLang}`);
     
-    // Импортируем и вызываем translateModule напрямую
-    const translateModule = require('./translate.js');
+    // Используем тот же DeepL API, что и основная функция
+    const payload = {
+      text: text,
+      source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
+      target_lang: targetLang
+    };
+
+    // Пробуем основной API
+    const defaultAPI = 'https://dplx.xi-xu.me/translate';
     
-    // Создаем mock объекты req и res
-    const mockReq = {
+    const response = await fetch(defaultAPI, {
       method: 'POST',
-      body: JSON.stringify({
-        text,
-        source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
-        target_lang: targetLang
-      })
-    };
-
-    let result = null;
-    const mockRes = {
-      setHeader: () => {},
-      status: (code) => ({
-        json: (data) => {
-          result = { statusCode: code, ...data };
-          return mockRes;
-        }
-      }),
-      json: (data) => {
-        result = { statusCode: 200, ...data };
+      body: JSON.stringify(payload),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
-    };
+    });
 
-    // Вызываем API перевода напрямую
-    await translateModule.default(mockReq, mockRes);
-    
-    if (result && result.code === 200 && result.data) {
-      console.log(`✅ Внутренний перевод ${sourceLang} → ${targetLang} успешен`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.code === 200 && result.data) {
+      console.log(`✅ Перевод через DeepL API ${sourceLang} → ${targetLang} успешен`);
       return result.data;
     } else {
-      throw new Error(result?.message || result?.error || "Неизвестная ошибка перевода");
+      throw new Error(result.message || 'API вернул ошибку');
     }
 
   } catch (error) {
-    console.error(`❌ Ошибка внутреннего перевода ${sourceLang} → ${targetLang}:`, error.message);
+    console.error(`❌ Ошибка перевода через DeepL API ${sourceLang} → ${targetLang}:`, error.message);
     
     // Fallback на демонстрационный текст
     console.log(`🔄 Используем демонстрационный перевод для ${targetLang}`);

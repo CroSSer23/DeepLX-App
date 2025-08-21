@@ -155,7 +155,30 @@ async function handleTelegramWebhook(req, res) {
   const text = message.text;
   const user = message.from;
 
-  console.log(`📱 Получено сообщение от ${user.first_name} (${user.id}): ${text}`);
+  // Проверяем наличие обязательных полей
+  if (!chatId || !user) {
+    console.error('❌ Неполные данные сообщения:', { chatId, user: !!user });
+    return res.status(200).json({ ok: true });
+  }
+
+  const userName = user.first_name || user.username || 'Неизвестный';
+  console.log(`📱 Получено сообщение от ${userName} (${user.id}): ${text || 'non-text message'}`);
+
+  // Игнорируем сообщения без текста (стикеры, фото, документы и т.д.)
+  if (!text || typeof text !== 'string') {
+    console.log(`ℹ️ Пропускаем сообщение без текста от ${userName}`);
+    
+    // Отправляем подсказку для нетекстовых сообщений
+    const messageType = getMessageType(message);
+    if (messageType && messageType !== 'unknown') {
+      await sendTelegramMessage(chatId,
+        `🤖 Я получил ваш ${messageType}, но мне нужен текстовый код авторизации.\n\n` +
+        '📝 Пожалуйста, отправьте код из 6 символов, который вы получили на сайте TranslateAI.'
+      );
+    }
+    
+    return res.status(200).json({ ok: true });
+  }
 
   // Обрабатываем команды
   if (text === '/start') {
@@ -201,11 +224,25 @@ async function handleTelegramWebhook(req, res) {
     }
   }
 
-  // Если код не найден
-  await sendTelegramMessage(chatId,
-    '❌ Код не найден или уже использован.\n\n' +
-    'Убедитесь, что вы правильно ввели код авторизации с сайта.'
-  );
+  // Если код не найден - показываем подсказку
+  if (text.length >= 3 && text.length <= 10) {
+    // Вероятно, это попытка ввести код
+    await sendTelegramMessage(chatId,
+      '❌ Код не найден или уже использован.\n\n' +
+      'Убедитесь, что вы правильно ввели код авторизации с сайта.\n\n' +
+      '💡 Код должен быть из 6 символов, например: ABC123'
+    );
+  } else {
+    // Обычное сообщение - показываем справку
+    await sendTelegramMessage(chatId,
+      '🤖 Привет! Я бот для авторизации TranslateAI.\n\n' +
+      '📝 Для получения доступа:\n' +
+      '1. Перейдите на сайт TranslateAI\n' +
+      '2. Получите код авторизации\n' +
+      '3. Отправьте мне этот код\n\n' +
+      '💬 Или отправьте /start для начала'
+    );
+  }
 
   return res.status(200).json({ ok: true });
 }
@@ -431,6 +468,25 @@ function cleanupExpiredSessions() {
       sessions.delete(sessionId);
     }
   }
+}
+
+/**
+ * Определяет тип сообщения Telegram
+ */
+function getMessageType(message) {
+  if (message.photo) return 'фото';
+  if (message.video) return 'видео';
+  if (message.document) return 'документ';
+  if (message.audio) return 'аудио';
+  if (message.voice) return 'голосовое сообщение';
+  if (message.sticker) return 'стикер';
+  if (message.animation) return 'GIF';
+  if (message.location) return 'местоположение';
+  if (message.contact) return 'контакт';
+  if (message.poll) return 'опрос';
+  if (message.venue) return 'место';
+  if (message.video_note) return 'видеосообщение';
+  return 'unknown';
 }
 
 function getStatusMessage(status) {

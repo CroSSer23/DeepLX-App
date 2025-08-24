@@ -18,6 +18,14 @@ const SUPPORTED_TYPES = {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 МБ
 
+// Конфигурация retry для надежности
+const RETRY_CONFIG = {
+  MAX_RETRIES: 5,
+  ENABLE_AGGRESSIVE_RETRY: true,
+  MAX_DELAY: 16000, // 16 секунд максимум
+  BASE_DELAY: 1000, // 1 секунда базовая задержка
+};
+
 // Хранилище задач обработки (в production следует использовать базу данных)
 const processingTasks = new Map();
 
@@ -202,15 +210,25 @@ async function handleDownload(req, res) {
     const fileContent = await generateDownloadContent(task, result);
     const fileName = generateFileName(task.fileName, langCode);
     
+    console.log(`📁 Генерируем скачивание для файла: "${task.fileName}" → "${fileName}"`);
+    
     // Устанавливаем заголовки для скачивания файла
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', buildContentDisposition(fileName));
     res.setHeader('Cache-Control', 'no-cache');
     
+    console.log(`✅ Файл готов к скачиванию: ${fileName} (${fileContent.length} символов)`);
     return res.status(200).send(fileContent);
     
   } catch (error) {
-    console.error('Ошибка генерации файла для скачивания:', error);
+    console.error('❌ Ошибка генерации файла для скачивания:', error);
+    console.error('📄 Детали задачи:', { 
+      taskId, 
+      langCode, 
+      fileName: task?.fileName,
+      resultStatus: result?.status 
+    });
+    
     return res.status(500).json({
       error: 'Download generation failed',
       message: error.message
@@ -303,7 +321,40 @@ function generateFileName(originalFileName, langCode) {
   const extension = originalFileName.includes('.') ? 
     originalFileName.substring(originalFileName.lastIndexOf('.')) : '.txt';
   
-  return `${nameWithoutExt}_${langCode}${extension}`;
+  const baseName = nameWithoutExt || 'translated_document';
+  return `${baseName}_${langCode}${extension}`;
+}
+
+/**
+ * Создает правильный заголовок Content-Disposition
+ */
+function buildContentDisposition(fileName) {
+  // Удаляем проблемные символы из имени файла
+  const sanitizedFileName = sanitizeFileName(fileName);
+  
+  // Кодируем имя файла для поддержки Unicode
+  const encodedFileName = encodeURIComponent(sanitizedFileName);
+  
+  // Используем RFC 5987 формат для поддержки Unicode в заголовках
+  return `attachment; filename="${sanitizedFileName}"; filename*=UTF-8''${encodedFileName}`;
+}
+
+/**
+ * Очищает имя файла от недопустимых символов
+ */
+function sanitizeFileName(fileName) {
+  // Заменяем недопустимые символы для HTTP заголовков
+  // Оставляем только латинские буквы, цифры, точки, дефисы и подчеркивания
+  const sanitized = fileName
+    .replace(/[^\x20-\x7E]/g, '_')  // Заменяем все не-ASCII символы
+    .replace(/[<>:"/\\|?*]/g, '_')  // Заменяем запрещенные в именах файлов символы
+    .replace(/\s+/g, '_')           // Заменяем пробелы на подчеркивание
+    .replace(/_{2,}/g, '_')         // Убираем множественные подчеркивания
+    .replace(/^_+|_+$/g, '')        // Убираем подчеркивания в начале и конце
+    .substring(0, 200);             // Ограничиваем длину имени файла
+  
+  // Если имя файла стало пустым, используем fallback
+  return sanitized || 'document';
 }
 
 /**
@@ -354,12 +405,13 @@ async function processDocumentAsync(taskId) {
       console.log(`🔄 Переводим на ${langCode}...`);
       
       try {
-        // Вызываем API перевода
+        // Вызываем API перевода с настройками retry
         console.log(`📝 Переводим ${extractedText.length} символов на ${langCode}`);
         const translatedText = await translateText(
           extractedText, 
           task.sourceLang, 
-          langCode
+          langCode,
+          RETRY_CONFIG.MAX_RETRIES
         );
         console.log(`📄 Получен перевод: ${translatedText.length} символов`);
 
@@ -416,18 +468,31 @@ async function processDocumentAsync(taskId) {
         }
       }
 
-      // Обновляем прогресс
-      task.progress = 20 + (80 * (i + 1)) / totalLangs;
+      // Обновляем прогресс с учетом завершенного языка
+      const progressPerLang = 80 / totalLangs;
+      task.progress = 20 + (progressPerLang * (i + 1));
+      
+      console.log(`📊 Прогресс обработки: ${Math.round(task.progress)}% (${i + 1}/${totalLangs} языков)`);
     }
-
+    
     // Завершаем обработку
     task.status = 'completed';
     task.progress = 100;
     
-    console.log(`🎉 Обработка документа завершена: ${task.fileName}`);
+    // Подробная статистика завершения
+    const successfulLangs = task.results.filter(r => r.status === 'completed').length;
+    const totalErrors = task.results.filter(r => r.status === 'error').length;
+    
+    console.log(`🎉 ОБРАБОТКА ДОКУМЕНТА ЗАВЕРШЕНА!`);
+    console.log(`📊 Статистика:`);
+    console.log(`   - Исходный файл: ${task.fileName}`);
+    console.log(`   - Целевых языков: ${totalLangs}`);
+    console.log(`   - Успешно переведено: ${successfulLangs}`);
+    console.log(`   - Ошибок: ${totalErrors}`);
+    console.log(`   - Процент успеха: ${Math.round((successfulLangs / totalLangs) * 100)}%`);
 
   } catch (error) {
-    console.error(`🚫 Критическая ошибка обработки:`, error);
+    console.error(`🚫 КРИТИЧЕСКАЯ ОШИБКА ОБРАБОТКИ:`, error);
     
     task.status = 'error';
     task.error = error.message;
@@ -447,51 +512,165 @@ async function extractTextFromDocument(fileId) {
 }
 
 /**
- * Переводит текст используя встроенную логику DeepL API
+ * Переводит текст используя встроенную логику DeepL API с повторными попытками
  */
-async function translateText(text, sourceLang, targetLang) {
-  try {
-    console.log(`🔄 Начинаем перевод через DeepL API ${sourceLang} → ${targetLang}`);
-    
-    // Используем тот же DeepL API, что и основная функция
-    const payload = {
-      text: text,
-      source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
-      target_lang: targetLang
-    };
+async function translateText(text, sourceLang, targetLang, maxRetries = 5) {
+  const originalText = text;
+  let lastError = null;
+  
+  console.log(`🔄 Начинаем перевод через DeepL API ${sourceLang} → ${targetLang} (макс. попыток: ${maxRetries})`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📡 Попытка ${attempt}/${maxRetries}: перевод ${text.length} символов на ${targetLang}`);
+      
+      // Используем тот же DeepL API, что и основная функция
+      const payload = {
+        text: text,
+        source_lang: sourceLang === 'AUTO' ? undefined : sourceLang,
+        target_lang: targetLang
+      };
 
-    // Пробуем основной API
-    const defaultAPI = 'https://dplx.xi-xu.me/translate';
-    
-    const response = await fetch(defaultAPI, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+      console.log(`Отправка запроса: {
+        endpoint: 'https://dplx.xi-xu.me/translate',
+        textLength: ${text.length},
+        targetLang: '${targetLang}'
+      }`);
+
+      const response = await fetch('https://dplx.xi-xu.me/translate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 30000 // 30 секунд таймаут
+      });
+
+      if (!response.ok) {
+        const statusText = response.statusText || 'Unknown Error';
+        console.error(`API error: ${response.status} ${statusText}`);
+        
+        // Проверяем, стоит ли повторять запрос
+        if (shouldRetry(response.status) && attempt < maxRetries) {
+          const delay = calculateRetryDelay(attempt);
+          console.log(`🔄 Ошибка ${response.status}, повтор через ${delay}мс (попытка ${attempt + 1}/${maxRetries})`);
+          await sleep(delay);
+          lastError = new Error(`HTTP ${response.status}: ${statusText}`);
+          continue;
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${statusText}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const result = await response.json();
+
+      if (result.code === 200 && result.data) {
+        console.log(`✅ Перевод через DeepL API ${sourceLang} → ${targetLang} успешен (попытка ${attempt})`);
+        return result.data;
+      } else {
+        const errorMsg = result.message || result.error || 'API вернул ошибку';
+        console.error(`API response error: ${errorMsg}`);
+        
+        if (attempt < maxRetries) {
+          const delay = calculateRetryDelay(attempt);
+          console.log(`🔄 Ошибка API, повтор через ${delay}мс (попытка ${attempt + 1}/${maxRetries})`);
+          await sleep(delay);
+          lastError = new Error(errorMsg);
+          continue;
+        }
+        
+        throw new Error(errorMsg);
+      }
+
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ Попытка ${attempt} не удалась: ${error.message}`);
+      
+      if (attempt < maxRetries && shouldRetryError(error)) {
+        const delay = calculateRetryDelay(attempt);
+        console.log(`⏳ Ожидание ${delay}мс перед повтором...`);
+        await sleep(delay);
+        continue;
+      }
+      
+      // Если все попытки исчерпаны
+      break;
     }
-
-    const result = await response.json();
-
-    if (result.code === 200 && result.data) {
-      console.log(`✅ Перевод через DeepL API ${sourceLang} → ${targetLang} успешен`);
-      return result.data;
-    } else {
-      throw new Error(result.message || 'API вернул ошибку');
-    }
-
-  } catch (error) {
-    console.error(`❌ Ошибка перевода через DeepL API ${sourceLang} → ${targetLang}:`, error.message);
-    
-    // Fallback на демонстрационный текст
-    console.log(`🔄 Используем демонстрационный перевод для ${targetLang}`);
-    return await generateDemoTranslatedContent(targetLang);
   }
+  
+  // Все попытки неудачны
+  console.error(`🚫 Все ${maxRetries} попыток перевода исчерпаны для ${targetLang}`);
+  console.error(`📝 Исходный текст: "${originalText.substring(0, 100)}..."`);
+  console.error(`💥 Последняя ошибка: ${lastError?.message}`);
+  
+  // Fallback на демонстрационный текст
+  console.log(`🔄 Используем демонстрационный перевод для ${targetLang}`);
+  return await generateDemoTranslatedContent(targetLang);
+}
+
+/**
+ * Определяет, стоит ли повторять запрос при данном статусе ответа
+ */
+function shouldRetry(statusCode) {
+  // Повторяем при серверных ошибках и некоторых клиентских
+  const retryableStatuses = [
+    408, // Request Timeout
+    429, // Too Many Requests
+    500, // Internal Server Error
+    502, // Bad Gateway
+    503, // Service Unavailable
+    504, // Gateway Timeout
+    520, // Unknown Error (Cloudflare)
+    521, // Web Server Is Down (Cloudflare)
+    522, // Connection Timed Out (Cloudflare)
+    523, // Origin Is Unreachable (Cloudflare)
+    524, // A Timeout Occurred (Cloudflare)
+  ];
+  
+  return retryableStatuses.includes(statusCode);
+}
+
+/**
+ * Определяет, стоит ли повторять запрос при данной ошибке
+ */
+function shouldRetryError(error) {
+  const retryableErrors = [
+    'ECONNRESET',
+    'ETIMEDOUT', 
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ECONNREFUSED'
+  ];
+  
+  return retryableErrors.some(code => error.message.includes(code)) ||
+         error.message.includes('timeout') ||
+         error.message.includes('network');
+}
+
+/**
+ * Вычисляет задержку для повторной попытки (экспоненциальная)
+ */
+function calculateRetryDelay(attempt) {
+  // Используем конфигурацию для настройки задержек
+  const baseDelay = RETRY_CONFIG.BASE_DELAY;
+  const maxDelay = RETRY_CONFIG.MAX_DELAY;
+  
+  // Экспоненциальная задержка: 1сек, 2сек, 4сек, 8сек, 16сек
+  let delay = baseDelay * Math.pow(2, attempt - 1);
+  
+  // Добавляем случайный джиттер для предотвращения thundering herd
+  const jitter = Math.random() * 0.3 * delay; // ±30% джиттер
+  delay = delay + jitter;
+  
+  return Math.min(delay, maxDelay);
+}
+
+/**
+ * Асинхронная задержка
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**

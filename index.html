@@ -588,6 +588,21 @@
                 Проверяем статус авторизации...
               </p>
             </div>
+            
+            <div class="flex gap-2">
+              <button
+                id="cancelAuthButton"
+                class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors"
+              >
+                Отменить
+              </button>
+              <button
+                id="newCodeButton"
+                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+              >
+                Новый код
+              </button>
+            </div>
           </div>
         </div>
 
@@ -627,5 +642,11 @@
     </div>
 
     <script src="script.js"></script>
+    
+    <!-- Vercel Analytics -->
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </body>
 </html>

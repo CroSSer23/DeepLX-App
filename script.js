@@ -124,6 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let isAuthenticated = false;
   let currentSessionId = null;
   let authCheckInterval = null;
+  let authCheckTimeout = null;
+  let authCheckStartTime = null;
+  const AUTH_CHECK_TIMEOUT = 10 * 60 * 1000; // 10 минут таймаут для проверки авторизации
   
   // Document processing state
   let currentMode = 'text'; // 'text' or 'document'
@@ -677,6 +680,15 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(`🎉 Перевод завершен успешно!`);
         showStaticStatus(`🎉 Перевод завершен! Переведено ${text.length.toLocaleString()} символов`, "success");
         
+        // Отслеживаем успешный перевод
+        if (typeof window !== 'undefined' && window.va) {
+          window.va('track', 'Translation Success', {
+            characters: text.length,
+            sourceLang: sourceLang,
+            targetLang: targetLang
+          });
+        }
+        
         // Скрываем прогресс через 2 секунды
         setTimeout(() => {
           updateProgress(0, false);
@@ -1190,7 +1202,15 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function startAuthCheck() {
     showAuthStep(3);
+    authCheckStartTime = Date.now();
     authCheckInterval = setInterval(checkAuthProgress, 3000);
+    
+    // Устанавливаем таймаут для автоматической остановки проверки
+    authCheckTimeout = setTimeout(() => {
+      clearAuthCheckInterval();
+      showAuthTimeout();
+    }, AUTH_CHECK_TIMEOUT);
+    
     checkAuthProgress(); // Первая проверка сразу
   }
 
@@ -1202,10 +1222,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const response = await fetch(`/api/auth?action=check&sessionId=${currentSessionId}`);
+      
+      // Обрабатываем истекшую сессию
+      if (response.status === 410) {
+        clearAuthCheckInterval();
+        showSessionExpired();
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
 
       const statusMessage = document.getElementById('authStatusMessage');
-      statusMessage.textContent = data.message;
+      
+      // Показываем время ожидания
+      const elapsedTime = authCheckStartTime ? Math.floor((Date.now() - authCheckStartTime) / 1000) : 0;
+      const remainingTime = Math.max(0, Math.floor((AUTH_CHECK_TIMEOUT - (Date.now() - authCheckStartTime)) / 1000));
+      
+      const timeInfo = remainingTime > 0 ? 
+        ` (ожидание: ${Math.floor(elapsedTime / 60)}:${String(elapsedTime % 60).padStart(2, '0')}, остается: ${Math.floor(remainingTime / 60)}:${String(remainingTime % 60).padStart(2, '0')})` : 
+        '';
+      
+      statusMessage.textContent = data.message + timeInfo;
 
       if (data.status === 'approved') {
         clearAuthCheckInterval();
@@ -1221,6 +1262,11 @@ document.addEventListener("DOMContentLoaded", () => {
         isAuthenticated = true;
         showAuthStep(4);
         
+        // Отслеживаем успешную авторизацию
+        if (typeof window !== 'undefined' && window.va) {
+          window.va('track', 'Auth Success');
+        }
+        
       } else if (data.status === 'rejected') {
         clearAuthCheckInterval();
         showAuthError('Доступ отклонен администратором. Обратитесь к администратору для получения доступа.');
@@ -1228,8 +1274,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
     } catch (error) {
       console.error('Ошибка проверки авторизации:', error);
+      
+      // Проверяем, не истекла ли сессия
+      if (error.message.includes('410') || error.message.includes('expired')) {
+        clearAuthCheckInterval();
+        showSessionExpired();
+        return;
+      }
+      
       document.getElementById('authStatusMessage').textContent = 'Ошибка проверки статуса...';
     }
+  }
+
+  /**
+   * Показывает сообщение о таймауте авторизации
+   */
+  function showAuthTimeout() {
+    showAuthError(
+      'Время ожидания подтверждения истекло (10 минут).\n\n' +
+      'Возможные причины:\n' +
+      '• Код не был отправлен боту\n' +
+      '• Администратор ещё не одобрил запрос\n\n' +
+      'Нажмите "Повторить", чтобы получить новый код.'
+    );
+    
+    // Добавляем кнопку повтора
+    const errorDiv = document.getElementById('authError');
+    const retryButton = document.createElement('button');
+    retryButton.textContent = 'Повторить авторизацию';
+    retryButton.className = 'btn btn-primary mt-3';
+    retryButton.onclick = () => {
+      errorDiv.removeChild(retryButton);
+      startAuth();
+    };
+    errorDiv.appendChild(retryButton);
+  }
+
+  /**
+   * Показывает сообщение об истекшей сессии
+   */
+  function showSessionExpired() {
+    showAuthError(
+      'Сессия авторизации истекла.\n\n' +
+      'Это могло произойти из-за длительного бездействия.\n' +
+      'Нажмите "Новый код", чтобы получить свежий код авторизации.'
+    );
+    
+    // Добавляем кнопку получения нового кода
+    const errorDiv = document.getElementById('authError');
+    const newCodeButton = document.createElement('button');
+    newCodeButton.textContent = 'Получить новый код';
+    newCodeButton.className = 'btn btn-primary mt-3';
+    newCodeButton.onclick = () => {
+      errorDiv.removeChild(newCodeButton);
+      startAuth();
+    };
+    errorDiv.appendChild(newCodeButton);
   }
 
   /**
@@ -1266,6 +1366,30 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(authCheckInterval);
       authCheckInterval = null;
     }
+    if (authCheckTimeout) {
+      clearTimeout(authCheckTimeout);
+      authCheckTimeout = null;
+    }
+    authCheckStartTime = null;
+  }
+
+  /**
+   * Отменяет процесс авторизации
+   */
+  function cancelAuth() {
+    clearAuthCheckInterval();
+    currentSessionId = null;
+    hideAuthModal();
+  }
+
+  /**
+   * Запрашивает новый код авторизации
+   */
+  function getNewCode() {
+    clearAuthCheckInterval();
+    currentSessionId = null;
+    resetAuthModal();
+    startAuth();
   }
 
   /**
@@ -1288,6 +1412,11 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function switchMode(mode) {
     currentMode = mode;
+    
+    // Отслеживаем переключение режимов
+    if (typeof window !== 'undefined' && window.va) {
+      window.va('track', 'Mode Switch', { mode: mode });
+    }
     
     // Обновляем активные табы
     elements.textModeTab.classList.toggle('active', mode === 'text');
@@ -1644,6 +1773,15 @@ document.addEventListener("DOMContentLoaded", () => {
     queueItem.status = 'processing';
     queueItem.progress = 0;
     
+    // Отслеживаем начало обработки документа
+    if (typeof window !== 'undefined' && window.va) {
+      window.va('track', 'Document Processing Start', {
+        fileName: queueItem.fileName,
+        fileSize: queueItem.fileSize,
+        targetLanguages: queueItem.targetLanguages?.length || 0
+      });
+    }
+    
     try {
       console.log(`📄 Обрабатываем: ${queueItem.fileName}`);
       
@@ -1732,6 +1870,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const originalInterval = setInterval(() => {
         if (queueItem.status === 'completed') {
           clearInterval(originalInterval);
+          
+          // Отслеживаем успешное завершение обработки документа
+          if (typeof window !== 'undefined' && window.va) {
+            window.va('track', 'Document Processing Success', {
+              fileName: queueItem.fileName,
+              fileSize: queueItem.fileSize,
+              targetLanguages: queueItem.targetLanguages?.length || 0,
+              resultsCount: queueItem.results?.length || 0
+            });
+          }
+          
           resolve();
         } else if (queueItem.status === 'error') {
           clearInterval(originalInterval);
@@ -1889,6 +2038,11 @@ document.addEventListener("DOMContentLoaded", () => {
   checkAuthStatus();
   
   lucide.createIcons(); // Initialize Lucide icons
+  
+  // Vercel Analytics - отслеживание загрузки страницы
+  if (typeof window !== 'undefined' && window.va) {
+    window.va('track', 'Page Load');
+  }
 
   // Initial auto-translate if there's existing text
   if (elements.inputText.value.trim() && isAuthenticated) {
@@ -1964,6 +2118,8 @@ document.addEventListener("DOMContentLoaded", () => {
     resetAuthModal();
     startAuth();
   });
+  document.getElementById('cancelAuthButton')?.addEventListener('click', cancelAuth);
+  document.getElementById('newCodeButton')?.addEventListener('click', getNewCode);
   elements.historyButton.addEventListener("click", showHistoryPanel);
   elements.settingsButton.addEventListener("click", showSettingsPanel);
   elements.closeHistoryButton.addEventListener("click", hideHistoryPanel);

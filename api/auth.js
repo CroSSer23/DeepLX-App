@@ -11,7 +11,8 @@ const CONFIG = {
   BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   ADMIN_CHAT_ID: process.env.TELEGRAM_ADMIN_CHAT_ID,
   WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
-  SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 часа
+  SESSION_TIMEOUT: 7 * 24 * 60 * 60 * 1000, // 7 дней - увеличенное время для комфорта пользователей
+  ACTIVITY_EXTEND_TIME: 24 * 60 * 60 * 1000, // 24 часа - продление при активности
 };
 
 // Хранилище сессий (в production следует использовать базу данных)
@@ -73,6 +74,7 @@ async function handleAuthStart(req, res) {
     authCode,
     status: 'pending',
     createdAt: Date.now(),
+    lastActivity: Date.now(),
     userInfo: null
   });
 
@@ -116,13 +118,20 @@ async function handleAuthCheck(req, res) {
   }
 
   // Проверяем не истекла ли сессия
-  if (Date.now() - session.createdAt > CONFIG.SESSION_TIMEOUT) {
+  const now = Date.now();
+  const sessionAge = now - session.createdAt;
+  const timeSinceLastActivity = now - (session.lastActivity || session.createdAt);
+  
+  if (sessionAge > CONFIG.SESSION_TIMEOUT) {
     sessions.delete(sessionId);
     return res.status(410).json({
       error: 'Session expired',
       message: 'Сессия истекла'
     });
   }
+  
+  // Обновляем lastActivity при каждой проверке статуса
+  session.lastActivity = now;
 
   return res.status(200).json({
     status: session.status,
@@ -207,6 +216,7 @@ async function handleTelegramWebhook(req, res) {
         username: user.username
       };
       session.status = 'pending_approval';
+      session.lastActivity = Date.now();
 
       console.log(`✅ Пользователь ${user.first_name} подтвердил код ${authCode}`);
 

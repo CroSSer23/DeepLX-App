@@ -7,7 +7,9 @@
     "build": "echo 'Build completed'",
     "deploy-check": "node deploy-check.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@vercel/analytics": "^1.5.0"
+  },
   "keywords": [
     "translation",
     "translateai",
